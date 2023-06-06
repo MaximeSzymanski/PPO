@@ -54,11 +54,10 @@ class ContinuousPPO(AbstractPPO):
         print("State size: ", self.state_size)
         print("Action size: ", self.action_size)
         self.episode_counter = 0
-
         self.actor = MLPActor(state_size=self.state_size,
-                              action_size=self.action_size, hidden_size=self.hidden_size)
+                              action_size=self.action_size, hidden_size=self.actor_hidden_size)
         self.critic = MLPCritic(
-            state_size=self.state_size, hidden_size=self.hidden_size)
+            state_size=self.state_size, hidden_size=self.critic_hidden_size)
         self.buffer = RolloutBuffer(
             minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 

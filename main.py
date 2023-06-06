@@ -11,7 +11,9 @@ if __name__ == '__main__':
     env = gym.make('LunarLander-v2')
     obs_size = env.observation_space.shape[0]
     n_actions = 1
-    hidden_size = 256
+    actor_hidden_size = dict(layer=[64,64,78], activ='tanh,relu,relu')
+    critic_hidden_size = dict(layer=[64], activ='tanh')
+
     # hyperparams
     lr = 0.00025
     gamma = 0.99
@@ -42,9 +44,10 @@ if __name__ == '__main__':
         minibatch_size=128,
         gae_lambda=gae_lambda,
         recurrent=recurrent,
+        actor_hidden_size=actor_hidden_size,
+        critic_hidden_size=critic_hidden_size,
     )
     # get logprob for action 0
-
 
 
 
