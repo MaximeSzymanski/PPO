@@ -1,5 +1,3 @@
-import copy
-import time
 from typing import List
 import numpy as np
 import torch
@@ -106,7 +104,7 @@ class Actor(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(256, action_size*2),
+            nn.Linear(256, action_size * 2),
             nn.Tanh()
         )
         self.apply(self._init_weights)

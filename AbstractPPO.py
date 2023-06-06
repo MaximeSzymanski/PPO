@@ -2,7 +2,6 @@
 
 import dataclasses
 from abc import ABCMeta, abstractmethod
-from typing import List, Tuple
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
