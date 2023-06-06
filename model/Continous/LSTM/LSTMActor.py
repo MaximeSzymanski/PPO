@@ -1,17 +1,11 @@
 import torch
 from torch import nn as nn
+from model.Utils import extract_LSTM_features
 
-
-class LSTMCritic(nn.Module):
-    """
-        MLP Critic
-        arguments:
-            state_size: int = 0, state size
-            action_size: int = 0, action size
-            hidden_size: dict = {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function
-        """
-    def __init__(self, state_size: int = 0, hidden_size=None) -> None:
-        super(LSTMCritic, self).__init__()
+class LSTMActor(nn.Module):
+    def __init__(self, lstm_hidden_size: int = 16, state_size: int = 0, action_size: int = 1,
+                 hidden_size=None) -> None:
+        super(LSTMActor, self).__init__()
 
         # Validation
         if hidden_size is None:
@@ -29,14 +23,17 @@ class LSTMCritic(nn.Module):
                 "'activ' key must be a string of activation function names ('relu', 'tanh') separated by comma")
 
         layers = []
-        layer_sizes = [state_size, *hidden_size['layer'], 1]
+        layer_sizes = [lstm_hidden_size, *hidden_size['layer'], action_size * 2]
         activ_funcs = hidden_size['activ'].split(',')
 
         if len(activ_funcs) == 1:
             activ_funcs = activ_funcs * len(hidden_size['layer'])
 
-        if len(activ_funcs) != len(layer_sizes) - 2:  # Substract 2 for state and output sizes
+        if len(activ_funcs) != len(layer_sizes) - 2:  # Subtract 2 for LSTM hidden and action sizes
             raise ValueError("The number of activation functions must be equal to the number of layers")
+
+        # Create LSTM layer
+        self.lstm = nn.LSTM(input_size=state_size, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
 
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -52,8 +49,17 @@ class LSTMCritic(nn.Module):
         self.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.Dense(x)
-        return x
+        # The input to LSTM must be of shape (batch_size, seq_len, input_size)
+        output = self.lstm(x)  # h_n is the hidden state for last timestep
+        output = extract_LSTM_features()(output)
+        x = self.Dense(output)
+
+
+        half_size = x.shape[-1] // 2
+        means = x[..., :half_size]
+        log_stds = x[..., half_size:]
+        stds = torch.exp(log_stds).clamp(min=-20, max=2)
+        return means, stds
 
     def _init_weights(self, module) -> None:
         for m in self.modules():

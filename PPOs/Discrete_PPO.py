@@ -5,12 +5,12 @@ import dataclasses
 import gymnasium as gym
 from tqdm import tqdm
 
-from model.Discrete.LSTM.LSTMCritic import  LSTMCritic
+from model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from model.Discrete.LSTM.LSTMActor import LSTMActor
 from model.Discrete.MLP.MLPActor import MLPActor
 from model.Discrete.MLP.MLPCritic import MLPCritic
-from RolloutBuffer import RolloutBuffer
-from AbstractPPO import AbstractPPO
+from utils.RolloutBuffer import RolloutBuffer
+from PPOs.AbstractPPO import AbstractPPO
 
 
 def get_model_flattened_params(model):
@@ -92,12 +92,12 @@ class DiscretePPO(AbstractPPO):
         self.action_size = self.env.action_space.n
 
         if self.recurrent:
-            self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.hidden_size).to(self.device)
-            self.critic = LSTMCritic(state_size=self.state_size, hidden_size= self.hidden_size).to(self.device)
+            self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
+            self.critic = LSTMCritic(state_size=self.state_size, hidden_size= self.critic_hidden_size).to(self.device)
 
         else:
-            self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.hidden_size).to(self.device)
-            self.critic = MLPCritic(state_size=self.state_size, hidden_size=self.hidden_size).to(self.device)
+            self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
+            self.critic = MLPCritic(state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
         self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 

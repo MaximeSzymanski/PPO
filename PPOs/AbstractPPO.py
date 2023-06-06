@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
 import gymnasium as gym
-from RolloutBuffer import RolloutBuffer
+from utils.RolloutBuffer import RolloutBuffer
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -49,6 +49,8 @@ class AbstractPPO(metaclass=ABCMeta):
     timestep_per_episode: int = dataclasses.field(init=True, default=512)
     epochs: int = dataclasses.field(init=True, default=10)
     minibatch_size: int = dataclasses.field(init=True, default=64)
+    continuous_action_space: bool = dataclasses.field(init=True, default=True)
+
 
     @abstractmethod
     def choose_action(self, state):

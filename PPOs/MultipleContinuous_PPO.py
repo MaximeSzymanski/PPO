@@ -7,11 +7,12 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
-from AbstractPPO import AbstractPPO
-from RolloutBuffer import RolloutBuffer
-from model.Continous.MLPActor import MLPActor
-from model.Continous.MLPCritic import MLPCritic
-
+from PPOs.AbstractPPO import AbstractPPO
+from utils.RolloutBuffer import RolloutBuffer
+from model.Continous.MLP.MLPActor import MLPActor
+from model.Continous.MLP.MLPCritic import MLPCritic
+from model.Continous.LSTM.LSTMActor import LSTMActor
+from model.Continous.LSTM.LSTMCritic import LSTMCritic
 
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
@@ -54,10 +55,18 @@ class ContinuousPPO(AbstractPPO):
         print("State size: ", self.state_size)
         print("Action size: ", self.action_size)
         self.episode_counter = 0
-        self.actor = MLPActor(state_size=self.state_size,
+        if self.recurrent:
+
+            self.actor = LSTMActor(state_size=self.state_size,
                               action_size=self.action_size, hidden_size=self.actor_hidden_size)
-        self.critic = MLPCritic(
-            state_size=self.state_size, hidden_size=self.critic_hidden_size)
+            self.critic = LSTMCritic(
+                state_size=self.state_size, hidden_size=self.critic_hidden_size)
+        else:
+            self.actor = MLPActor(state_size=self.state_size,
+                             action_size=self.action_size, hidden_size=self.actor_hidden_size)
+
+            self.critic = MLPCritic(
+                state_size=self.state_size, hidden_size=self.critic_hidden_size)
         self.buffer = RolloutBuffer(
             minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
