@@ -1,22 +1,19 @@
-import copy
-import time
+import dataclasses
 from typing import List
+
+import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
-import dataclasses
-import gymnasium as gym
 from PIL import Image
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import os
 
 from AbstractPPO import AbstractPPO
 from RolloutBuffer import RolloutBuffer
+
+
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
-
-
 
 
 class MLPActor(nn.Module):
@@ -28,21 +25,20 @@ class MLPActor(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(256, action_size*2),
+            nn.Linear(256, action_size * 2),
         )
         self.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-            x = self.Dense(x)
+        x = self.Dense(x)
 
+        half_size = x.shape[-1] // 2
+        means = x[..., :half_size]
+        log_stds = x[..., half_size:]
+        stds = torch.exp(log_stds).clamp(min=-20, max=2)
+        return means, stds
 
-            half_size = x.shape[-1] // 2
-            means = x[..., :half_size]
-            log_stds = x[..., half_size:]
-            stds = torch.exp(log_stds).clamp(min=-20, max=2)
-            return means, stds
-
-    def _init_weights(self,module) -> None:
+    def _init_weights(self, module) -> None:
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.orthogonal_(m.weight)
@@ -112,17 +108,22 @@ class ContinuousPPO(AbstractPPO):
         print("Action size: ", self.action_size)
         self.episode_counter = 0
 
-        self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.hidden_size)
-        self.critic = MLPCritic(state_size=self.state_size,hidden_size= self.hidden_size)
-        self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
+        self.actor = MLPActor(state_size=self.state_size,
+                              action_size=self.action_size, hidden_size=self.hidden_size)
+        self.critic = MLPCritic(
+            state_size=self.state_size, hidden_size=self.hidden_size)
+        self.buffer = RolloutBuffer(
+            minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr)
+        self.actor_optimizer = torch.optim.Adam(
+            self.actor.parameters(), lr=self.lr)
+        self.critic_optimizer = torch.optim.Adam(
+            self.critic.parameters(), lr=self.lr)
 
     def choose_action(self, state: np.ndarray) -> List:
         with torch.no_grad():
-
-            state = torch.tensor(state, dtype=torch.float32, device=self.device)
+            state = torch.tensor(
+                state, dtype=torch.float32, device=self.device)
             # if the state is 3,1, we remove the first dimension
 
             mean, std = self.actor(state)
@@ -133,7 +134,6 @@ class ContinuousPPO(AbstractPPO):
             if len(mean.shape) != 1:
                 mean = mean.squeeze()"""
 
-
             covar_matrix = torch.diag(square_std)
 
             dist = torch.distributions.MultivariateNormal(mean, covar_matrix)
@@ -142,11 +142,7 @@ class ContinuousPPO(AbstractPPO):
         action = action.numpy()
         # add a dimension to the action
 
-
         return action, log_prob
-
-
-
 
     def rollout_episodes(self) -> float:
         number_of_step = 0
@@ -170,28 +166,31 @@ class ContinuousPPO(AbstractPPO):
                 # reward is a numpy array, we need to convert it to a float
                 # same for action
 
-
                 next_state = next_state.reshape(-1)
                 self.total_timesteps_counter += 1
                 reward_sum += reward
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
-                state = torch.tensor(state, dtype=torch.float32, device=self.device)
+                state = torch.tensor(
+                    state, dtype=torch.float32, device=self.device)
 
                 value = self.critic(state)
-                reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
-                mask = torch.tensor([not done], dtype=torch.float32, device=self.device)
-                done = torch.tensor([done], dtype=torch.float32, device=self.device)
+                reward = torch.tensor(
+                    [reward], dtype=torch.float32, device=self.device)
+                mask = torch.tensor(
+                    [not done], dtype=torch.float32, device=self.device)
+                done = torch.tensor(
+                    [done], dtype=torch.float32, device=self.device)
 
-                action = torch.tensor(action, dtype=torch.float32, device=self.device)
+                action = torch.tensor(
+                    action, dtype=torch.float32, device=self.device)
                 self.buffer.add_step_to_buffer(
                     reward, value, log_prob, action, done, state, mask)
                 state = next_state
                 number_of_step += 1
                 ep_steps += 1
                 if done or number_of_step == self.timestep_per_update:
-
 
                     number_episode += 1
                     self.episode_counter += 1
@@ -207,7 +206,7 @@ class ContinuousPPO(AbstractPPO):
         self.buffer.compute_advantages()
         self.writer.add_scalar(
             'Average reward', average_reward / number_episode, self.episode_counter)
-        return best_reward, average_reward/number_episode
+        return best_reward, average_reward / number_episode
 
     def update(self):
         torch.autograd.set_detect_anomaly(True)
@@ -230,7 +229,8 @@ class ContinuousPPO(AbstractPPO):
 
                 square_std = std ** 2
                 covar_matrix = torch.diag_embed(square_std)
-                dist = torch.distributions.MultivariateNormal(mean, covar_matrix)
+                dist = torch.distributions.MultivariateNormal(
+                    mean, covar_matrix)
 
                 entropy = dist.entropy()
                 discounted_rewards = torch.stack(discounted_rewards)
@@ -244,7 +244,7 @@ class ContinuousPPO(AbstractPPO):
                 advantages = torch.squeeze(advantages)
                 old_log_probs = torch.stack(old_log_probs)
                 old_log_probs = torch.squeeze(old_log_probs)
-                ratio = torch.exp(new_log_probs- old_log_probs.detach())
+                ratio = torch.exp(new_log_probs - old_log_probs.detach())
 
                 surr1 = ratio * advantages
                 surr2 = torch.clamp(ratio, 1 - self.eps_clip,
@@ -253,7 +253,7 @@ class ContinuousPPO(AbstractPPO):
 
                 critic_loss = self.critic_loss(values, discounted_rewards)
                 loss = actor_loss + self.value_loss_coef * \
-                    critic_loss - self.entropy_coef * entropy
+                       critic_loss - self.entropy_coef * entropy
                 self.writer.add_scalar(
                     "Value Loss", critic_loss.mean(), self.total_updates_counter)
                 self.writer.add_scalar(
@@ -274,10 +274,8 @@ class ContinuousPPO(AbstractPPO):
         self.decay_learning_rate()
         self.buffer.clean_buffer()
 
-
-
     def evaluate(self):
-        state, info= self.env.reset()
+        state, info = self.env.reset()
         output_file = 'results/gif/render.gif'
         frames = []
         total_reward = 0
@@ -293,8 +291,8 @@ class ContinuousPPO(AbstractPPO):
             total_reward += reward
         # create a gif using PIL
         frames[0].save(output_file, format='GIF',
-                          append_images=frames[1:],
-                            save_all=True,
-                            duration=300, loop=0)
+                       append_images=frames[1:],
+                       save_all=True,
+                       duration=300, loop=0)
         print(total_reward)
         self.env.close()

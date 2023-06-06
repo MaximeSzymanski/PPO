@@ -45,23 +45,29 @@ You can change the hyperparameters in main.py, and change the environement too.
 
 ## Results
 
+# create a table
+
+
+
 ### LunarLander-v2 (Discrete)
 
 Here are the results for LunarLander-v2 environement (reward per episode):
 
-![LunarLander-v2 Results](results/curves/lunar_lander_rewards.png)
+| Rewards                                             | Video |
+|-----------------------------------------------------| --- |
+| <img src=results/curves/lunar_lander.png width=600> | <img src=results/gif/lunar.gif width=600> |
 
-
-![LunarLander-v2 Gif](results/gif/lunar.gif)
 
 ### BipedalWalker-v2 (Continuous)
 
 Here are the results for BipedalWalker-v2 environement (reward per episode):
 
-![BipedalWalker-v2 Results](results/curves/biped_walker.png)
+| Rewards | Video |
+| --- | --- |
+| <img src=results/curves/biped_walker.png width=600>| <img src=results/gif/bipedal_walker.gif width=600> |
 
 
-![BipedalWalker-v2 Gif](results/gif/bipedal_walker.gif)
+
 
 
 

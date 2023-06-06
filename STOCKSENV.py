@@ -88,8 +88,6 @@ class StockEnv(gym.Env):
             # create a folder for each stock
             print(f'{ticker} done')
 
-
-
         [stock.values.dropna() for stock in train_stocks]
         [stock.values.dropna() for stock in test_stocks]
         series_lengths_train = {len(series) for series in [
@@ -100,15 +98,18 @@ class StockEnv(gym.Env):
         print(f'Test series lengths : {series_lengths_test}')
         for stock in train_stocks:
             for index in range(1, len(stock.values)):
-                stock.values.loc[index, 'DR'] = stock.values.loc[index, 'Close'] / stock.values.loc[index - 1, 'Close']
+                stock.values.loc[index, 'DR'] = stock.values.loc[index,
+                                                                 'Close'] / stock.values.loc[index - 1, 'Close']
         for stock in test_stocks:
             for index in range(1, len(stock.values)):
-                stock.values.loc[index, 'DR'] = stock.values.loc[index, 'Close'] / stock.values.loc[index - 1, 'Close']
+                stock.values.loc[index, 'DR'] = stock.values.loc[index,
+                                                                 'Close'] / stock.values.loc[index - 1, 'Close']
         # normalize all datas between 0 and 100. Normalize independently all the stocks,
         scaler = MinMaxScaler(feature_range=(0, 10))
 
         # Train data normalization
-        train_data_norm = pd.concat([stock.values.drop(['Date'], axis=1) for stock in train_stocks])
+        train_data_norm = pd.concat(
+            [stock.values.drop(['Date'], axis=1) for stock in train_stocks])
         train_data_norm = scaler.fit_transform(train_data_norm)
         train_data_norm_index = 0
 
@@ -116,11 +117,13 @@ class StockEnv(gym.Env):
             num_rows = len(stock.values)
             stock_values = train_data_norm[train_data_norm_index: train_data_norm_index + num_rows]
             df = pd.DataFrame(stock_values, columns=stock.values.columns[1:])
-            stock.values.iloc[:, 1:] = df  # Update values for all columns except 'Date'
+            # Update values for all columns except 'Date'
+            stock.values.iloc[:, 1:] = df
             train_data_norm_index += num_rows
 
         # Test data normalization
-        test_data_norm = pd.concat([stock.values.drop(['Date'], axis=1) for stock in test_stocks])
+        test_data_norm = pd.concat(
+            [stock.values.drop(['Date'], axis=1) for stock in test_stocks])
         test_data_norm = scaler.transform(test_data_norm)
         test_data_norm_index = 0
 
@@ -128,7 +131,8 @@ class StockEnv(gym.Env):
             num_rows = len(stock.values)
             stock_values = test_data_norm[test_data_norm_index: test_data_norm_index + num_rows]
             df = pd.DataFrame(stock_values, columns=stock.values.columns[1:])
-            stock.values.iloc[:, 1:] = df  # Update values for all columns except 'Date'
+            # Update values for all columns except 'Date'
+            stock.values.iloc[:, 1:] = df
             test_data_norm_index += num_rows
 
         # Split the data into train and test
@@ -202,7 +206,8 @@ class StockEnv(gym.Env):
         if isinstance(stocks_owned, torch.Tensor):
             actions = stocks_owned.item()
 
-        self.days.append([daily_return, close / 10, portfolio / 10000, stocks_owned / 10])
+        self.days.append(
+            [daily_return, close / 10, portfolio / 10000, stocks_owned / 10])
 
     def _get_obs(self):
         # get the current state of the stock, and concatenate it with the portfolio and the actions
@@ -257,8 +262,8 @@ class StockEnv(gym.Env):
         # choose a random starting point in the stock, but not too close to the end (window_size)
         # self.starting_point = random.randint(0, len(self.stock.values) - self.window_size - 1)
         self.diff_pourcentage = (
-                (self.stock.values['Close'].iloc[-1] - self.stock.values['Close'].iloc[0]) /
-                self.stock.values['Close'].iloc[0])
+            (self.stock.values['Close'].iloc[-1] - self.stock.values['Close'].iloc[0]) /
+            self.stock.values['Close'].iloc[0])
         self.min_close = self.stock.values['Close'].min()
         self.max_close = self.stock.values['Close'].max()
         """self.max_portfolio = (

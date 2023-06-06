@@ -28,23 +28,23 @@ class RolloutBuffer():
 
     """
     rewards: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= List[torch.Tensor])
+        init=False,  default=List[torch.Tensor])
     values: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= List[torch.Tensor])
+        init=False,  default=List[torch.Tensor])
     log_probs: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= List[torch.Tensor])
+        init=False,  default=List[torch.Tensor])
     actions: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= List[torch.Tensor])
+        init=False,  default=List[torch.Tensor])
     dones: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= List[torch.Tensor])
+        init=False,  default=List[torch.Tensor])
     states: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= List[torch.Tensor])
+        init=False,  default=List[torch.Tensor])
     advantages: List[torch.Tensor] = dataclasses.field(
-        init=False, default= List[torch.Tensor])
+        init=False, default=List[torch.Tensor])
     masks: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= None)
+        init=False,  default=None)
     returns: List[torch.Tensor] = dataclasses.field(
-        init=False,  default= None)
+        init=False,  default=None)
     minibatch_size: int = dataclasses.field(init=True, default=64)
     gamma: float = dataclasses.field(init=True, default=0.99)
     gae_lambda: float = dataclasses.field(init=True, default=0.95)
@@ -60,10 +60,10 @@ class RolloutBuffer():
         self.masks = []
         self.returns = []
 
-
-
     def add_step_to_buffer(self, reward: torch.Tensor, value: torch.Tensor, log_prob: torch.Tensor, action: torch.Tensor, done: torch.Tensor, state: list[torch.Tensor], mask: torch.Tensor) -> None:
-
+        """
+        Add a step to the buffer
+        """
         self.rewards.append(reward)
         self.values.append(value)
         self.log_probs.append(log_prob)
@@ -73,6 +73,10 @@ class RolloutBuffer():
         self.masks.append(mask)
 
     def compute_advantages(self) -> None:
+        """
+        Compute the advantages using Generalized Advantage Estimation
+        Compute the returns (i.e. discounted rewards) using the values from the critic
+        """
         gae = 0
         returns = []
         self.values = torch.stack(self.values).detach()

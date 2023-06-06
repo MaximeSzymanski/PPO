@@ -11,16 +11,23 @@ from RolloutBuffer import RolloutBuffer
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+
+
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
+    """
+    Abstract class for PPO
+
+    """
     writer: SummaryWriter = SummaryWriter()
     critic_loss: nn.MSELoss = nn.MSELoss()
     critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     actor_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     buffer: RolloutBuffer = dataclasses.field(default_factory=RolloutBuffer)
     recurrent: bool = dataclasses.field(init=True, default=False)
-    device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    critic: nn.Module = dataclasses.field(default= None, init=False)
+    device: torch.device = torch.device(
+        "cuda:0" if torch.cuda.is_available() else "cpu")
+    critic: nn.Module = dataclasses.field(default=None, init=False)
     actor: nn.Module = dataclasses.field(default=None, init=False)
     action_size: int = dataclasses.field(init=False, default=0)
     state_size: int = dataclasses.field(init=False, default=0)
@@ -42,8 +49,6 @@ class AbstractPPO(metaclass=ABCMeta):
     timestep_per_episode: int = dataclasses.field(init=True, default=512)
     epochs: int = dataclasses.field(init=True, default=10)
     minibatch_size: int = dataclasses.field(init=True, default=64)
-
-
 
     @abstractmethod
     def choose_action(self, state):
@@ -79,12 +84,18 @@ class AbstractPPO(metaclass=ABCMeta):
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
-                value = self.critic(torch.tensor(state,device=self.device,dtype=torch.float32))
-                reward = torch.tensor([reward],device=self.device,dtype=torch.float32)
-                mask = torch.tensor([not done],device=self.device,dtype=torch.float32)
-                done = torch.tensor([done],device=self.device,dtype=torch.float32)
-                state = torch.tensor(state,device=self.device,dtype=torch.float32)
-                action = torch.tensor([action],device=self.device,dtype=torch.float32)
+                value = self.critic(torch.tensor(
+                    state, device=self.device, dtype=torch.float32))
+                reward = torch.tensor(
+                    [reward], device=self.device, dtype=torch.float32)
+                mask = torch.tensor(
+                    [not done], device=self.device, dtype=torch.float32)
+                done = torch.tensor(
+                    [done], device=self.device, dtype=torch.float32)
+                state = torch.tensor(
+                    state, device=self.device, dtype=torch.float32)
+                action = torch.tensor(
+                    [action], device=self.device, dtype=torch.float32)
                 self.buffer.add_step_to_buffer(
                     reward, value, log_prob, action, done, state, mask)
                 state = next_state
@@ -118,11 +129,13 @@ class AbstractPPO(metaclass=ABCMeta):
     def load_model(self, path: str = 'models/') -> None:
         print("Loading model")
 
-        self.actor.load_state_dict(torch.load(f"{path}modelactor.pth",map_location=self.device))
-        self.critic.load_state_dict(torch.load(f"{path}modelcritic.pth",map_location=self.device))
+        self.actor.load_state_dict(torch.load(
+            f"{path}modelactor.pth", map_location=self.device))
+        self.critic.load_state_dict(torch.load(
+            f"{path}modelcritic.pth", map_location=self.device))
 
     def evaluate(self):
-        state, info= self.env.reset()
+        state, info = self.env.reset()
         output_file = 'results/gif/render.gif'
         frames = []
         done = False
@@ -135,9 +148,9 @@ class AbstractPPO(metaclass=ABCMeta):
             tot_reward += reward
             # next sate is [[value]], we need to convert it to [value]
             state = next_state
-            #frame = self.env.render()
-            #frame = Image.fromarray(frame)
-            #frames.append(frame)
+            # frame = self.env.render()
+            # frame = Image.fromarray(frame)
+            # frames.append(frame)
         # create a gif using PIL
         """frames[0].save(output_file, format='GIF',
                           append_images=frames[1:],
@@ -148,4 +161,4 @@ class AbstractPPO(metaclass=ABCMeta):
         plt.plot(portfolio_value)
         plt.show()
 
-        #self.env.close()
+        # self.env.close()
