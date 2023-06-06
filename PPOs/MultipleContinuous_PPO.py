@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from PIL import Image
 from tqdm import tqdm
-
+from FibbonacciEnv import FibonacciEnvironment
 from PPOs.AbstractPPO import AbstractPPO
 from utils.RolloutBuffer import RolloutBuffer
 from model.Continous.MLP.MLPActor import MLPActor
@@ -49,8 +49,12 @@ class ContinuousPPO(AbstractPPO):
     def __post_init__(self) -> None:
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
-        self.env = gym.make(self.env_name)
+        if self.render:
+            self.env = gym.make(self.env_name, render_mode='human')
+        else:
+            self.env = gym.make(self.env_name)
         self.state_size = self.env.observation_space.shape[0]
+
         self.action_size = len(self.env.action_space.sample())
         print("State size: ", self.state_size)
         print("Action size: ", self.action_size)
@@ -80,8 +84,12 @@ class ContinuousPPO(AbstractPPO):
             state = torch.tensor(
                 state, dtype=torch.float32, device=self.device)
             # if the state is 3,1, we remove the first dimension
-
+            if self.recurrent:
+                state = state.unsqueeze(1)
             mean, std = self.actor(state)
+            if self.recurrent:
+                mean = mean.squeeze(1)
+                std = std.squeeze(1)
             # this is a multivariate normal distribution
             square_std = std ** 2
             """ if len(square_std.shape) != 1:
@@ -90,7 +98,6 @@ class ContinuousPPO(AbstractPPO):
                 mean = mean.squeeze()"""
 
             covar_matrix = torch.diag(square_std)
-
             dist = torch.distributions.MultivariateNormal(mean, covar_matrix)
             action = dist.sample()
             log_prob = dist.log_prob(action)
@@ -117,6 +124,7 @@ class ContinuousPPO(AbstractPPO):
             for _ in range(self.timestep_per_episode):
 
                 action, log_prob = self.choose_action(state)
+
                 next_state, reward, done, _, _ = self.env.step(action)
                 # reward is a numpy array, we need to convert it to a float
                 # same for action
@@ -129,7 +137,8 @@ class ContinuousPPO(AbstractPPO):
                     "Reward total timestep", reward, self.total_timesteps_counter)
                 state = torch.tensor(
                     state, dtype=torch.float32, device=self.device)
-
+                if self.recurrent:
+                    state = state.unsqueeze(1)
                 value = self.critic(state)
                 reward = torch.tensor(
                     [reward], dtype=torch.float32, device=self.device)
@@ -179,6 +188,8 @@ class ContinuousPPO(AbstractPPO):
                 states = torch.stack(states)
 
                 values = self.critic(states)
+                if self.recurrent:
+                    values = values.squeeze().squeeze()
                 mean, std = self.actor(states)
                 values = values.squeeze()
 
@@ -192,15 +203,14 @@ class ContinuousPPO(AbstractPPO):
                 discounted_rewards = torch.squeeze(discounted_rewards)
                 actions = torch.stack(actions)
 
-                actions = actions.squeeze(1)
-
+                #actions = actions.squeeze(1)
                 new_log_probs = dist.log_prob(actions)
                 advantages = torch.stack(advantages)
                 advantages = torch.squeeze(advantages)
                 old_log_probs = torch.stack(old_log_probs)
                 old_log_probs = torch.squeeze(old_log_probs)
-                ratio = torch.exp(new_log_probs - old_log_probs.detach())
 
+                ratio = torch.exp(new_log_probs - old_log_probs.detach())
                 surr1 = ratio * advantages
                 surr2 = torch.clamp(ratio, 1 - self.eps_clip,
                                     1 + self.eps_clip) * advantages

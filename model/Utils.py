@@ -5,9 +5,11 @@ from torch import nn as nn
 class extract_LSTM_features(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        tensor, _ = x
+        if len(x.shape) == 2:
+            # add a dimension to the tensor
+            x = x.unsqueeze(1)
         # keep only the last output of the LSTM
-        tensor= tensor[:, -1, :]
+        x= x[:, -1, :]
 
         """ shape = tensor.size()
             if len(shape) == 2:
@@ -16,4 +18,4 @@ class extract_LSTM_features(nn.Module):
                 reshaped_tensor = torch.flatten(tensor, start_dim=1)
             else:
                 raise ValueError("Unsupported tensor shape")"""
-        return tensor
+        return x

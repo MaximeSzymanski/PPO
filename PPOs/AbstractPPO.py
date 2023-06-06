@@ -50,6 +50,7 @@ class AbstractPPO(metaclass=ABCMeta):
     epochs: int = dataclasses.field(init=True, default=10)
     minibatch_size: int = dataclasses.field(init=True, default=64)
     continuous_action_space: bool = dataclasses.field(init=True, default=True)
+    render: bool = dataclasses.field(init=True, default=False)
 
 
     @abstractmethod
@@ -86,8 +87,9 @@ class AbstractPPO(metaclass=ABCMeta):
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
+
                 value = self.critic(torch.tensor(
-                    state, device=self.device, dtype=torch.float32))
+                    state, device=self.device, dtype=torch.float32).unsqueeze(1))
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)
                 mask = torch.tensor(
@@ -111,9 +113,7 @@ class AbstractPPO(metaclass=ABCMeta):
                         best_reward = ep_reward
                         self.writer.add_scalar(
                             "Best reward", best_reward, self.current_episode)
-
                     break
-
         self.buffer.compute_advantages()
         return best_reward, average_reward/number_episode
 

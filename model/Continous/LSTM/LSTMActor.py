@@ -33,7 +33,7 @@ class LSTMActor(nn.Module):
             raise ValueError("The number of activation functions must be equal to the number of layers")
 
         # Create LSTM layer
-        self.lstm = nn.LSTM(input_size=state_size, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=1, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
 
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -50,15 +50,21 @@ class LSTMActor(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # The input to LSTM must be of shape (batch_size, seq_len, input_size)
-        output = self.lstm(x)  # h_n is the hidden state for last timestep
-        output = extract_LSTM_features()(output)
-        x = self.Dense(output)
+        # The output of LSTM is of shape (batch_size, seq_len, hidden_size)
+        output,_ = self.lstm(x)  # h_n is the hidden state for last timestep
 
+        if len(output.shape) == 2:
+            output = output.unsqueeze(0)
+        x = output[:, -1, :]
+        x = self.Dense(x)
 
         half_size = x.shape[-1] // 2
         means = x[..., :half_size]
         log_stds = x[..., half_size:]
         stds = torch.exp(log_stds).clamp(min=-20, max=2)
+
+
+
         return means, stds
 
     def _init_weights(self, module) -> None:

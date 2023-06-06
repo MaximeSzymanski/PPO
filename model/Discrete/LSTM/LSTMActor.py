@@ -23,7 +23,7 @@ class LSTMActor(nn.Module):
                 "'activ' key must be a string of activation function names ('relu', 'tanh') separated by comma")
 
         layers = []
-        layer_sizes = [lstm_hidden_size, *hidden_size['layer'], action_size * 2]
+        layer_sizes = [lstm_hidden_size, *hidden_size['layer'], action_size]
         activ_funcs = hidden_size['activ'].split(',')
 
         if len(activ_funcs) == 1:
@@ -33,7 +33,7 @@ class LSTMActor(nn.Module):
             raise ValueError("The number of activation functions must be equal to the number of layers")
 
         # Create LSTM layer
-        self.lstm = nn.LSTM(input_size=state_size, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=1, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
 
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -50,8 +50,11 @@ class LSTMActor(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # The input to LSTM must be of shape (batch_size, seq_len, input_size)
-        output = self.lstm(x)  # h_n is the hidden state for last timestep
-        output = extract_LSTM_features()(output)
+
+        output ,_= self.lstm(x)  # h_n is the hidden state for last timestep
+        if len(output.shape) == 2:
+            output = output.unsqueeze(0)
+        output = output[:, -1, :]
         x = self.Dense(output)
 
 

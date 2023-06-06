@@ -4,6 +4,7 @@ import torch
 import dataclasses
 import gymnasium as gym
 from tqdm import tqdm
+from FibbonacciEnv import FibonacciEnvironment
 
 from model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from model.Discrete.LSTM.LSTMActor import LSTMActor
@@ -87,7 +88,12 @@ class DiscretePPO(AbstractPPO):
     def __post_init__(self) -> None:
         print("Initializing DiscretePPO")
         window_size = 50
-        self.env = gym.make(self.env_name)
+        if self.render:
+            self.env = gym.make(self.env_name, render_mode='human')
+        else:
+
+            self.env = gym.make(self.env_name)
+
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
 
@@ -107,6 +113,9 @@ class DiscretePPO(AbstractPPO):
     def choose_action(self, state: np.ndarray) -> List:
         with torch.no_grad():
             state = torch.tensor(state,device=self.device,dtype=torch.float32)
+            if self.recurrent:
+                state = state.unsqueeze(1)
+
             action_probs = self.actor(state)
             # Compute the mask
             """
@@ -118,7 +127,6 @@ class DiscretePPO(AbstractPPO):
             dist = torch.distributions.Categorical(action_probs)
             action = dist.sample()
             log_prob = dist.log_prob(action)
-
         return action.item(), log_prob
 
     def update(self):
@@ -134,8 +142,12 @@ class DiscretePPO(AbstractPPO):
                     batch_indices)
 
                 states = torch.stack(states)
+                if self.recurrent:
+                    states = states.unsqueeze(2)
 
                 values = self.critic(states)
+                if self.recurrent:
+                    values = values.squeeze().squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
                 """
@@ -147,16 +159,16 @@ class DiscretePPO(AbstractPPO):
                 dist = torch.distributions.Categorical(action_probs)
                 entropy = dist.entropy()
                 discounted_rewards = torch.stack(discounted_rewards)
+                discounted_rewards = discounted_rewards.squeeze().squeeze()
                 actions = torch.stack(actions)
                 actions = actions.squeeze()
 
                 new_log_probs = dist.log_prob(actions)
                 advantages = torch.stack(advantages)
                 advantages = torch.squeeze(advantages)
-                old_log_probs = torch.stack(old_log_probs)
+                old_log_probs = torch.stack(old_log_probs).squeeze()
 
                 ratio = torch.exp(new_log_probs - old_log_probs.detach())
-
                 surr1 = ratio * advantages
                 surr2 = torch.clamp(ratio, 1 - self.eps_clip,
                                     1 + self.eps_clip) * advantages

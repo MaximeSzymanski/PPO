@@ -24,9 +24,9 @@ It doesn't handle MultiDiscrete (like LunarLander-v2 environement).
 
 Recurrent PPO is used for environement with recurrent neural network (like Doom environement).
 You have to use the LSTMActor and LSTMCritic classes.
+Just specify it in the arguments when you launch the script.
 
-
-For the moment, MultiDiscrete and MultiAction continuous are not implemented (I'm working on it).
+For the moment, MultiDiscrete  is not implemented (I'm working on it).
 
 
 Install the requirements:
@@ -68,6 +68,21 @@ Here are the results for BipedalWalker-v2 environement (reward per episode):
 
 
 
+### Fibonacci sequence (Discrete LSTM)
+
+Here are the results for Fibonacci sequence (reward per episode):
+
+| Rewards                                                    |                                           
+|------------------------------------------------------------|
+| <img src=results/curves/fibonacci_discrete.png width=100%> |
+
+### Fibonacci sequence (Continuous LSTM)
+
+Here are the results for Fibonacci sequence (reward per episode):
+
+| Rewards                                                    |
+|------------------------------------------------------------|
+| <img src=results/curves/fibonacci_continuous.png width=100%> |
 
 
 
