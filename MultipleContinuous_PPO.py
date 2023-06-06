@@ -11,102 +11,23 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import os
 
+from AbstractPPO import AbstractPPO
+from RolloutBuffer import RolloutBuffer
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
 
 
-@dataclasses.dataclass
-class RolloutBuffer():
-    rewards: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    values: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    log_probs: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    actions: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    dones: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    states: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    advantages: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    masks: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    returns: List[torch.Tensor] = dataclasses.field(
-        init=False, default_factory=list)
-    minibatch_size: int = dataclasses.field(init=True, default=64)
-    gamma: float = dataclasses.field(init=True, default=0.99)
-    gae_lambda: float = dataclasses.field(init=True, default=0.95)
 
 
-
-    def add_step_to_buffer(self, reward: torch.Tensor, value: torch.Tensor, log_prob: torch.Tensor, action: torch.Tensor, done: torch.Tensor, state: list[torch.Tensor], mask: torch.Tensor) -> None:
-
-        self.rewards.append(reward)
-        self.values.append(value)
-        self.log_probs.append(log_prob)
-        self.actions.append(action)
-        self.dones.append(done)
-        self.states.append(state)
-        self.masks.append(mask)
-
-    def compute_advantages(self) -> None:
-        gae = 0
-        returns = []
-        self.values = torch.stack(self.values).detach()
-        for i in reversed(range(len(self.rewards) - 1)):
-            delta = self.rewards[i] + self.gamma * \
-                self.values[i + 1] * (1 - self.dones[i]) - self.values[i]
-            gae = delta + self.gamma * \
-                self.gae_lambda * (1 - self.dones[i]) * gae
-            returns.insert(0, gae + self.values[i])
-
-        returns = torch.stack(returns).squeeze(-1).squeeze(-1)
-        # normalize returns
-        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
-        # reverse the advantages
-        self.values = self.values.squeeze(-1)
-        self.advantages = (returns) - (self.values[:-1])
-
-        # normalize advantages
-        self.advantages = (self.advantages - self.advantages.mean()
-                           ) / (self.advantages.std() + 1e-8)
-        self.returns = (returns)
-
-
-    def clean_buffer(self) -> None:
-        self.rewards = []
-        self.values = []
-        self.log_probs = []
-        self.actions = []
-        self.dones = []
-        self.states = []
-        self.advantages = []
-        self.masks = []
-        self.returns = []
-
-    def get_minibatch(self, batch_indices):
-        states = [self.states[i] for i in batch_indices]
-        actions = [self.actions[i] for i in batch_indices]
-        log_probs = [self.log_probs[i] for i in batch_indices]
-        advantages = [self.advantages[i] for i in batch_indices]
-        returns = [self.returns[i] for i in batch_indices]
-
-        # Compute discounted rewards
-
-        return states, actions, log_probs, advantages, returns
-
-
-class Actor(nn.Module):
+class MLPActor(nn.Module):
 
     def __init__(self, state_size: int = 0, action_size: int = 1, hidden_size: int = 0) -> None:
-        super(Actor, self).__init__()
+        super(MLPActor, self).__init__()
         self.Dense = nn.Sequential(
             nn.Linear(state_size, 512),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(512, 256),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(256, action_size*2),
         )
         self.apply(self._init_weights)
@@ -128,15 +49,15 @@ class Actor(nn.Module):
                 nn.init.constant_(m.bias, 0.1)
 
 
-class Critic(nn.Module):
+class MLPCritic(nn.Module):
 
     def __init__(self, state_size: int = 0, hidden_size=0) -> None:
-        super(Critic, self).__init__()
+        super(MLPCritic, self).__init__()
         self.Dense = nn.Sequential(
             nn.Linear(state_size, 512),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(512, 256),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(256, 1)
         )
         self.apply(self._init_weights)
@@ -154,7 +75,7 @@ class Critic(nn.Module):
 
 
 @dataclasses.dataclass
-class ContinuousPPO():
+class ContinuousPPO(AbstractPPO):
     """
     Proximal Policy Optimization
 
@@ -177,64 +98,22 @@ class ContinuousPPO():
         env_name (str): Name of the environment
 
     :returns: DiscretePPO agent
+
     """
-    # Hyperparameters
-    minibatch_size: int = dataclasses.field(init=True, default=64)
-    epochs: int = dataclasses.field(init=True, default=10)
-    timestep_per_episode: int = dataclasses.field(init=True, default=512)
-    timestep_per_update: int = dataclasses.field(init=True, default=2048)
-    hidden_size: int = dataclasses.field(init=False, default=256)
-    lr: float = dataclasses.field(init=True, default=3e-4)
-    eps_clip: float = dataclasses.field(init=True, default=0.2)
-    entropy_coef: float = dataclasses.field(init=True, default=0.01)
-    value_loss_coef: float = dataclasses.field(init=True, default=0.5)
-    gae_lambda: float = dataclasses.field(init=True, default=0.95)
-    gamma: float = dataclasses.field(init=True, default=0.99)
-    total_timesteps_counter: int = dataclasses.field(init=False, default=0)
-    total_updates_counter: int = dataclasses.field(init=False, default=0)
-    current_episode: int = dataclasses.field(init=False, default=0)
-    decay_rate: float = dataclasses.field(init=True, default=0.99)
-    env_worker: int = dataclasses.field(init=True, default=4)
-    env_name: str = dataclasses.field(init=True, default="BipedalWalker-v3")
-
-    # Environment
-    env: gym.Env = dataclasses.field(init=False)
-    state_size: int = dataclasses.field(init=False, default=0)
-
-    action_size: int = dataclasses.field(init=False, default=0)
-    episode_counter: int = dataclasses.field(init=False, default=0)
-    # MLPActor and MLPCritic Networks
-    #actor: MLPActor = MLPActor(state_size, action_size, hidden_size)
-    actor: Actor = dataclasses.field(default_factory=Actor, init=False)
-    critic: Critic = dataclasses.field(default_factory=Critic, init=False)
-
-    # Buffer
-    buffer: RolloutBuffer = dataclasses.field(default_factory=RolloutBuffer)
-
-    # Optimizers
-    actor_optimizer: torch.optim.Adam = dataclasses.field(init=False)
-    critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
-
-    # Losses
-    critic_loss: nn.MSELoss = nn.MSELoss()
-
-    # Tensorboard
-    writer: SummaryWriter = SummaryWriter()
 
     # Path to save the model
-    path: str = dataclasses.field(init=True, default="models/")
     def __post_init__(self) -> None:
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
-        self.env = gym.make(self.env_name,render_mode='rgb_array')
+        self.env = gym.make(self.env_name)
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = len(self.env.action_space.sample())
         print("State size: ", self.state_size)
         print("Action size: ", self.action_size)
+        self.episode_counter = 0
 
-
-        self.actor = Actor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.hidden_size)
-        self.critic = Critic(state_size=self.state_size,hidden_size= self.hidden_size)
+        self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.hidden_size)
+        self.critic = MLPCritic(state_size=self.state_size,hidden_size= self.hidden_size)
         self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
@@ -243,7 +122,7 @@ class ContinuousPPO():
     def choose_action(self, state: np.ndarray) -> List:
         with torch.no_grad():
 
-            state = torch.FloatTensor(state)
+            state = torch.tensor(state, dtype=torch.float32, device=self.device)
             # if the state is 3,1, we remove the first dimension
 
             mean, std = self.actor(state)
@@ -267,14 +146,7 @@ class ContinuousPPO():
         return action, log_prob
 
 
-    def decay_learning_rate(self) -> None:
-        # decay critic learning rate
-        self.writer.add_scalar(
-            "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)
-        for param_group in self.critic_optimizer.param_groups:
-            param_group['lr'] *= self.decay_rate
-        for param_group in self.actor_optimizer.param_groups:
-            param_group['lr'] *= self.decay_rate
+
 
     def rollout_episodes(self) -> float:
         number_of_step = 0
@@ -305,20 +177,22 @@ class ContinuousPPO():
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
-                state = torch.FloatTensor(state)
+                state = torch.tensor(state, dtype=torch.float32, device=self.device)
 
                 value = self.critic(state)
-                reward = torch.FloatTensor([reward])
-                mask = torch.FloatTensor([not done])
-                done = torch.FloatTensor([done])
-                state = torch.FloatTensor(state)
-                action = torch.FloatTensor([action])
+                reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
+                mask = torch.tensor([not done], dtype=torch.float32, device=self.device)
+                done = torch.tensor([done], dtype=torch.float32, device=self.device)
+
+                action = torch.tensor(action, dtype=torch.float32, device=self.device)
                 self.buffer.add_step_to_buffer(
                     reward, value, log_prob, action, done, state, mask)
                 state = next_state
                 number_of_step += 1
                 ep_steps += 1
                 if done or number_of_step == self.timestep_per_update:
+
+
                     number_episode += 1
                     self.episode_counter += 1
                     average_reward += ep_reward
@@ -360,6 +234,7 @@ class ContinuousPPO():
 
                 entropy = dist.entropy()
                 discounted_rewards = torch.stack(discounted_rewards)
+                discounted_rewards = torch.squeeze(discounted_rewards)
                 actions = torch.stack(actions)
 
                 actions = actions.squeeze(1)
@@ -399,18 +274,7 @@ class ContinuousPPO():
         self.decay_learning_rate()
         self.buffer.clean_buffer()
 
-    def save_model(self, path = "models/"):
-        print("Saving model")
-        # create the folder if it does not exist
-        if not os.path.exists(path):
-            os.makedirs(path)
-        torch.save(self.actor.state_dict(), f"{path}actor.pth")
-        torch.save(self.critic.state_dict(), f"{path}critic.pth")
 
-    def load_model(self, path = "models/"):
-        print("Loading model")
-        self.actor.load_state_dict(torch.load(f"modelactor.pth"))
-        self.critic.load_state_dict(torch.load(f"modelcritic.pth"))
 
     def evaluate(self):
         state, info= self.env.reset()

@@ -68,35 +68,28 @@ class StockEnv(gym.Env):
 
         print(f'Train tickers : {train_tickers}')
         print(f'Test tickers : {test_tickers}')
-
+        train_stocks = []
+        test_stocks = []
         period = '5y'
         for ticker in train_tickers:
             df_temp = yf.Ticker(ticker).history(period=period)
             df_temp.drop(['Dividends', 'Stock Splits', 'Volume'],
                          axis=1, inplace=True)
+            train_stocks.append(Stock(ticker, df_temp))
+
             # create a folder for each stock
-            df_temp.to_csv(f'./data_train/{ticker}.csv')
             print(f'{ticker} done')
         for ticker in test_tickers:
             df_temp = yf.Ticker(ticker).history(period=period)
             df_temp.drop(['Dividends', 'Stock Splits', 'Volume'],
                          axis=1, inplace=True)
+            test_stocks.append(Stock(ticker, df_temp))
+
             # create a folder for each stock
-            df_temp.to_csv(f'./data_test/{ticker}.csv')
             print(f'{ticker} done')
 
-        train_stocks = []
-        test_stocks = []
-        for ticker in train_tickers:
-            # read the csv
-            file_name = 'data_train/' + ticker + '.csv'
-            df = pd.read_csv(file_name)
-            train_stocks.append(Stock(ticker, df))
-        for ticker in test_tickers:
-            # read the csv
-            file_name = 'data_test/' + ticker + '.csv'
-            df = pd.read_csv(file_name)
-            test_stocks.append(Stock(ticker, df))
+
+
         [stock.values.dropna() for stock in train_stocks]
         [stock.values.dropna() for stock in test_stocks]
         series_lengths_train = {len(series) for series in [
