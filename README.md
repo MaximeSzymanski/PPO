@@ -64,7 +64,7 @@ Here are the results for BipedalWalker-v2 environement (reward per episode):
 
 | Rewards                                             | Video                                              |
 |-----------------------------------------------------|----------------------------------------------------|
-| <img src=results/curves/biped_walker.png width=50%> | <img src=results/gif/bipedal_walker.gif width=50%> |
+| <img src=results/curves/biped_walker.png width=100%> | <img src=results/gif/bipedal_walker.gif width=100%> |
 
 
 
