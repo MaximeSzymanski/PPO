@@ -53,9 +53,9 @@ You can change the hyperparameters in main.py, and change the environement too.
 
 Here are the results for LunarLander-v2 environement (reward per episode):
 
-| Rewards                                             | Video                                     |
-|-----------------------------------------------------|-------------------------------------------|
-| <img src=results/curves/lunar_lander.png width=50%> | <img src=results/gif/lunar.gif width=50%> |
+| Rewards                                              | Video                                     |
+|------------------------------------------------------|-------------------------------------------|
+| <img src=results/curves/lunar_lander.png width=100%> | <img src=results/gif/lunar.gif width=100%> |
 
 
 ### BipedalWalker-v2 (Continuous)
