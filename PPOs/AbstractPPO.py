@@ -92,17 +92,18 @@ class AbstractPPO(metaclass=ABCMeta):
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
-
-                value = self.critic(torch.tensor(
-                    state, device=self.device, dtype=torch.float32).unsqueeze(1))
+                state = torch.tensor(
+                    state, device=self.device, dtype=torch.float32)
+                if self.recurrent:
+                    state = state.unsqueeze(1)
+                value = self.critic(state)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)
                 mask = torch.tensor(
                     [not done], device=self.device, dtype=torch.float32)
                 done = torch.tensor(
                     [done], device=self.device, dtype=torch.float32)
-                state = torch.tensor(
-                    state, device=self.device, dtype=torch.float32)
+
                 action = torch.tensor(
                     [action], device=self.device, dtype=torch.float32)
                 self.buffer.add_step_to_buffer(

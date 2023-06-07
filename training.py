@@ -16,12 +16,7 @@ if __name__ == '__main__':
                                 epochs=K_epochs,render=render)
 
     print(PPO)
-    env = FibonacciEnvironment(sequence_length=5)
-    print('action space shape',env.action_space.n)
 
-    print('sample action',env.action_space.sample())
-    print('sample observation',env.observation_space.sample())
-    print(PPO.timestep_per_episode)
     for i in range(1000):
         print('Iteration: ', i)
         best, avg = PPO.rollout_episodes()

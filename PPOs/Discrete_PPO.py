@@ -148,6 +148,8 @@ class DiscretePPO(AbstractPPO):
                 values = self.critic(states)
                 if self.recurrent:
                     values = values.squeeze().squeeze()
+                else:
+                    values = values.squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
                 """
