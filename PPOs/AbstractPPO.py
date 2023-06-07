@@ -94,8 +94,8 @@ class AbstractPPO(metaclass=ABCMeta):
                     "Reward total timestep", reward, self.total_timesteps_counter)
                 state = torch.tensor(
                     state, device=self.device, dtype=torch.float32)
-                if self.recurrent:
-                    state = state.unsqueeze(1)
+                """if self.recurrent:
+                    state = state.unsqueeze(1)"""
                 value = self.critic(state)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)

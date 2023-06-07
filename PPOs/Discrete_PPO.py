@@ -4,7 +4,7 @@ import torch
 import dataclasses
 import gymnasium as gym
 from tqdm import tqdm
-
+from utils.STOCKSENV import StockEnv
 from model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from model.Discrete.LSTM.LSTMActor import LSTMActor
 from model.Discrete.MLP.MLPActor import MLPActor
@@ -88,14 +88,14 @@ class DiscretePPO(AbstractPPO):
         super().__post_init__()
         print("Initializing DiscretePPO")
         window_size = 50
-        if self.render:
+        """if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         else:
 
-            self.env = gym.make(self.env_name)
-
-        self.state_size = self.env.observation_space.shape[0]
-        self.action_size = self.env.action_space.n
+            self.env = gym.make(self.env_name)"""
+        self.env = StockEnv(window_size)
+        self.state_size = 4
+        self.action_size = 3
 
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
@@ -114,15 +114,13 @@ class DiscretePPO(AbstractPPO):
         with torch.no_grad():
             state = torch.tensor(state,device=self.device,dtype=torch.float32)
             if self.recurrent:
-                state = state.unsqueeze(1)
-
+                state = state.unsqueeze(0)
             action_probs = self.actor(state)
             # Compute the mask
-            """
-            mask = get_action_mask(state[-1][-1].item(), state[-1][1].item(), state[-1][-2].item(),self.device)
+            mask = get_action_mask(state[-1][-1][-1].item(), state[-1][-1][1].item(), state[-1][-1][-2].item(),self.device)
             # Mask the action probabilities
             action_probs = action_probs * mask
-            """
+
 
             dist = torch.distributions.Categorical(action_probs)
             action = dist.sample()
@@ -142,9 +140,8 @@ class DiscretePPO(AbstractPPO):
                     batch_indices)
 
                 states = torch.stack(states)
-                if self.recurrent:
-                    states = states.unsqueeze(2)
-
+                """if self.recurrent:
+                    states = states.unsqueeze(1)"""
                 values = self.critic(states)
                 if self.recurrent:
                     values = values.squeeze().squeeze()
@@ -152,11 +149,10 @@ class DiscretePPO(AbstractPPO):
                     values = values.squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
-                """
-                 masks_list = [get_action_mask(state[-1][-1].item(), state[-1][1].item(), state[-1][-2].item(),self.device) for state in states]
-                 masks = torch.stack(masks_list)
-                 action_probs = action_probs * masks
-                """
+                masks_list = [get_action_mask(state[-1][-1].item(), state[-1][1].item(), state[-1][-2].item(),self.device) for state in states]
+                masks = torch.stack(masks_list)
+                action_probs = action_probs * masks
+
 
                 dist = torch.distributions.Categorical(action_probs)
                 entropy = dist.entropy()

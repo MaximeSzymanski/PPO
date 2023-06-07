@@ -49,10 +49,15 @@ class ContinuousPPO(AbstractPPO):
         super().__post_init__()
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
-        if self.render:
-            self.env = gym.make(self.env_name, render_mode='human')
+
+        if self.env_name== "LunarLander-v2":
+            self.env = gym.make(self.env_name,continuous=True)
         else:
-            self.env = gym.make(self.env_name)
+            if self.render:
+                self.env = gym.make(self.env_name, render_mode='human')
+            else:
+                self.env = gym.make(self.env_name)
+
         self.state_size = self.env.observation_space.shape[0]
 
         self.action_size = len(self.env.action_space.sample())
