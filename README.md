@@ -61,6 +61,10 @@ It takes several arguments:
 - **decay_rate**: decay rate for the learning rate. Default : **0.99**
 - **render**: "True" or "False" (if you want to render the environement). Default : **"False"**
 
+Example:
+```bash
+python training.py --Continous_or_Discrete "Continuous" --recurrent "False" --env_name "LunarLander-v2" --actor_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --critic_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --lr 0.0003 --gamma 0.99 --K_epochs 4 --eps_clip 0.2 --mini_batch_size 64 --entropy_coef 0.01 --value_loss_coef 0.5 --max_timesteps_one_episode 2048 --timestep_per_update 2048*4 --decay_rate 0.99 --render "False"
+```
 
 ### Choose the architecture of the neural networks
 
