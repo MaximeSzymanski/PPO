@@ -90,18 +90,18 @@ It works for both actor and critic, and for both continuous and discrete PPO (ev
 
 Here are the results for LunarLander-v2 environement (reward per episode):
 
-| Rewards                                              | Video                                     |
-|------------------------------------------------------|-------------------------------------------|
-| <img src=results/curves/lunar_lander.png width=100%> | <img src=results/gif/lunar.gif width=100%> |
+| Rewards                                                  | Video                                          |
+|----------------------------------------------------------|------------------------------------------------|
+| <img src=src/results/curves/lunar_lander.png width=100%> | <img src=src/results/gif/lunar.gif width=100%> |
 
 
 ### BipedalWalker-v2 (Continuous)
 
 Here are the results for BipedalWalker-v2 environement (reward per episode):
 
-| Rewards                                             | Video                                              |
-|-----------------------------------------------------|----------------------------------------------------|
-| <img src=results/curves/biped_walker.png width=100%> | <img src=results/gif/bipedal_walker.gif width=100%> |
+| Rewards                                                  | Video                                                   |
+|----------------------------------------------------------|---------------------------------------------------------|
+| <img src=src/results/curves/biped_walker.png width=100%> | <img src=src/results/gif/bipedal_walker.gif width=100%> |
 
 
 
@@ -109,17 +109,17 @@ Here are the results for BipedalWalker-v2 environement (reward per episode):
 
 Here are the results for Fibonacci sequence (reward per episode):
 
-| Rewards                                                    |                                           
-|------------------------------------------------------------|
-| <img src=results/curves/fibonacci_discrete.png width=100%> |
+| Rewards                                                        |                                           
+|----------------------------------------------------------------|
+| <img src=src/results/curves/fibonacci_discrete.png width=100%> |
 
 ### Fibonacci sequence (Continuous LSTM)
 
 Here are the results for Fibonacci sequence (reward per episode):
 
-| Rewards                                                    |
-|------------------------------------------------------------|
-| <img src=results/curves/fibonacci_continuous.png width=100%> |
+| Rewards                                                          |
+|------------------------------------------------------------------|
+| <img src=src/results/curves/fibonacci_continuous.png width=100%> |
 
 
 
