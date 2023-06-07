@@ -28,24 +28,56 @@ Just specify it in the arguments when you launch the script.
 
 For the moment, MultiDiscrete  is not implemented (I'm working on it).
 
-
-Install the requirements:
+## Install requirements
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Run the training:
+## Launch the training
+
+To run the training:
 
 ```bash
-python main.py
+python training.py --args
 ```
 
-You can change the hyperparameters in main.py, and change the environement too.
+### Arguments
+It takes several arguments:
+- **Continous_or_Discrete**: "Continuous" or "Discrete" environement
+- **recurrent**: "True" or "False" (if you want to use a recurrent neural network)
+- **env_name**: "LunarLander-v2", "BipedalWalker-v2" or "DoomBasic-v0
+- **actor_hidden_size**: size of the hidden layer of the actor, and the activation function.
+- **critic_hidden_size**: size of the hidden layer of the critic, and the activation function.
+- **lr** : learning rate
+- **gamma**: discount factor
+- **K_epochs**: number of epochs of gradient descent
+- **eps_clip**: clip parameter for PPO
+- **mini_batch_size**: size of the batch for gradient descent
+- **entropy_coef**: entropy coefficient
+- **value_loss_coef**: value loss coefficient
+- **max_timesteps_one_episode** : maximum number of timesteps in one episode
+- **timestep_per_update**: number of timesteps before updating the policy
+- **decay_rate**: decay rate for the learning rate
+- **render**: "True" or "False" (if you want to render the environement)
+
+
+### Choose the architecture of the neural networks
+
+You can customize the architecture of the neural networks using argements **actor_hidden_size** and **critic_hidden_size**.
+
+You have to specify the size of the hidden layers and the activation function in a dictionnary, with the following format:
+```python
+{
+    "layer" : [32,32,64,...,64],
+    "activ" : ["relu","relu",...,"relu"]
+}
+```
+If you choose only one activation function, it will be applied to all the hidden layers.
+It works for both actor and critic, and for both continuous and discrete PPO (even for the recurrent PPO).
+
 
 ## Results
-
-# create a table
 
 
 
