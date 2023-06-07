@@ -6,12 +6,12 @@ import numpy as np
 import torch
 from PIL import Image
 from tqdm import tqdm
-from PPOs.AbstractPPO import AbstractPPO
-from utils.RolloutBuffer import RolloutBuffer
-from model.Continous.MLP.MLPActor import MLPActor
-from model.Continous.MLP.MLPCritic import MLPCritic
-from model.Continous.LSTM.LSTMActor import LSTMActor
-from model.Continous.LSTM.LSTMCritic import LSTMCritic
+from src.PPOs.AbstractPPO import AbstractPPO
+from src.utils.RolloutBuffer import RolloutBuffer
+from src.model.Continous.MLP.MLPActor import MLPActor
+from src.model.Continous.MLP.MLPCritic import MLPCritic
+from src.model.Continous.LSTM.LSTMActor import LSTMActor
+from src.model.Continous.LSTM.LSTMCritic import LSTMCritic
 
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])

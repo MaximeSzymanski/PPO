@@ -1,5 +1,5 @@
-from PPOs.MultipleContinuous_PPO import ContinuousPPO
-from PPOs.Discrete_PPO import DiscretePPO
+from src.PPOs.MultipleContinuous_PPO import ContinuousPPO
+from src.PPOs.Discrete_PPO import DiscretePPO
 
 class PPOFactory:
     @staticmethod

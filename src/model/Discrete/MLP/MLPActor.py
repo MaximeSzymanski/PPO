@@ -1,11 +1,11 @@
 import torch
 from torch import nn as nn
-from model.Utils import extract_LSTM_features
 
-class LSTMActor(nn.Module):
-    def __init__(self, lstm_hidden_size: int = 16, state_size: int = 0, action_size: int = 1,
+
+class MLPActor(nn.Module):
+    def __init__(self, state_size: int = 16,action_size: int = 1,
                  hidden_size=None) -> None:
-        super(LSTMActor, self).__init__()
+        super(MLPActor, self).__init__()
 
         # Validation
         if hidden_size is None:
@@ -23,7 +23,7 @@ class LSTMActor(nn.Module):
                 "'activ' key must be a string of activation function names ('relu', 'tanh') separated by comma")
 
         layers = []
-        layer_sizes = [lstm_hidden_size, *hidden_size['layer'], action_size]
+        layer_sizes = [state_size, *hidden_size['layer'], action_size]
         activ_funcs = hidden_size['activ'].split(',')
 
         if len(activ_funcs) == 1:
@@ -32,8 +32,6 @@ class LSTMActor(nn.Module):
         if len(activ_funcs) != len(layer_sizes) - 2:  # Subtract 2 for LSTM hidden and action sizes
             raise ValueError("The number of activation functions must be equal to the number of layers")
 
-        # Create LSTM layer
-        self.lstm = nn.LSTM(input_size=state_size, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
 
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -50,11 +48,9 @@ class LSTMActor(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # The input to LSTM must be of shape (batch_size, seq_len, input_size)
-        output ,_= self.lstm(x)  # h_n is the hidden state for last timestep
-        if len(output.shape) == 2:
-            output = output.unsqueeze(0)
-        output = output[:, -1, :]
-        x = self.Dense(output)
+
+
+        x = self.Dense(x)
 
 
         x = nn.Softmax(dim=-1)(x)

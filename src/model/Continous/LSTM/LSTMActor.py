@@ -1,6 +1,6 @@
 import torch
 from torch import nn as nn
-from model.Utils import extract_LSTM_features
+
 
 class LSTMActor(nn.Module):
     def __init__(self, lstm_hidden_size: int = 16, state_size: int = 0, action_size: int = 1,

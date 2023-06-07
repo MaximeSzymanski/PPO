@@ -1,6 +1,6 @@
 import torch
 from torch import nn as nn
-from model.Utils import extract_LSTM_features
+
 
 class LSTMCritic(nn.Module):
     """

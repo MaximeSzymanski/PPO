@@ -2,15 +2,14 @@ from typing import List
 import numpy as np
 import torch
 import dataclasses
-import gymnasium as gym
 from tqdm import tqdm
-from utils.STOCKSENV import StockEnv
-from model.Discrete.LSTM.LSTMCritic import LSTMCritic
-from model.Discrete.LSTM.LSTMActor import LSTMActor
-from model.Discrete.MLP.MLPActor import MLPActor
-from model.Discrete.MLP.MLPCritic import MLPCritic
-from utils.RolloutBuffer import RolloutBuffer
-from PPOs.AbstractPPO import AbstractPPO
+from src.utils.STOCKSENV import StockEnv
+from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
+from src.model.Discrete.LSTM.LSTMActor import LSTMActor
+from src.model.Discrete.MLP.MLPActor import MLPActor
+from src.model.Discrete.MLP.MLPCritic import MLPCritic
+from src.utils.RolloutBuffer import RolloutBuffer
+from src.PPOs.AbstractPPO import AbstractPPO
 
 
 def get_model_flattened_params(model):
