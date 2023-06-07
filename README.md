@@ -44,22 +44,22 @@ python training.py --args
 
 ### Arguments
 It takes several arguments:
-- **Continous_or_Discrete**: "Continuous" or "Discrete" environement
-- **recurrent**: "True" or "False" (if you want to use a recurrent neural network)
-- **env_name**: "LunarLander-v2", "BipedalWalker-v2" or "DoomBasic-v0
-- **actor_hidden_size**: size of the hidden layer of the actor, and the activation function.
-- **critic_hidden_size**: size of the hidden layer of the critic, and the activation function.
-- **lr** : learning rate
-- **gamma**: discount factor
-- **K_epochs**: number of epochs of gradient descent
-- **eps_clip**: clip parameter for PPO
-- **mini_batch_size**: size of the batch for gradient descent
-- **entropy_coef**: entropy coefficient
-- **value_loss_coef**: value loss coefficient
-- **max_timesteps_one_episode** : maximum number of timesteps in one episode
-- **timestep_per_update**: number of timesteps before updating the policy
-- **decay_rate**: decay rate for the learning rate
-- **render**: "True" or "False" (if you want to render the environement)
+- **Continous_or_Discrete**: "Continuous" or "Discrete" environment. Default : **"Continuous"**
+- **recurrent**: "True" or "False" (if you want to use a recurrent neural network). Default : **"False"**
+- **env_name**: "LunarLander-v2", "BipedalWalker-v2" or "DoomBasic-v0. Default : **"LunarLander-v2"**
+- **actor_hidden_size**: size of the hidden layer of the actor, and the activation function. Default : **{"layer" : [32,32],"activ" : ["relu"]}**
+- **critic_hidden_size**: size of the hidden layer of the critic, and the activation function. Default : **{"layer" : [32,32],"activ" : ["relu"]}**
+- **lr** : learning rate. Default : **0.0003**
+- **gamma**: discount factor. Default : **0.99**
+- **K_epochs**: number of epochs of gradient descent. Default : **4**
+- **eps_clip**: clip parameter for PPO. Default : **0.2**
+- **mini_batch_size**: size of the batch for gradient descent. Default : **64**
+- **entropy_coef**: entropy coefficient. Default : **0.01**
+- **value_loss_coef**: value loss coefficient. Default : **0.5**
+- **max_timesteps_one_episode** : maximum number of timesteps in one episode. Default : **2048**
+- **timestep_per_update**: number of timesteps before updating the policy. Default : **2048*4**
+- **decay_rate**: decay rate for the learning rate. Default : **0.99**
+- **render**: "True" or "False" (if you want to render the environement). Default : **"False"**
 
 
 ### Choose the architecture of the neural networks
