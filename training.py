@@ -1,6 +1,6 @@
 # This is a sample Python script.
 from utils.PPO_factory import PPOFactory
-from FibbonacciEnv import FibonacciEnvironment
+from utils.FibbonacciEnv import FibonacciEnvironment
 from utils.arg_parse import get_hyperparameters
 if __name__ == '__main__':
 

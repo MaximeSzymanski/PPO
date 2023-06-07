@@ -4,7 +4,6 @@ import torch
 import dataclasses
 import gymnasium as gym
 from tqdm import tqdm
-from FibbonacciEnv import FibonacciEnvironment
 
 from model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from model.Discrete.LSTM.LSTMActor import LSTMActor

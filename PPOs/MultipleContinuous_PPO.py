@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from PIL import Image
 from tqdm import tqdm
-from FibbonacciEnv import FibonacciEnvironment
 from PPOs.AbstractPPO import AbstractPPO
 from utils.RolloutBuffer import RolloutBuffer
 from model.Continous.MLP.MLPActor import MLPActor
