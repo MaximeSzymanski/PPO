@@ -16,9 +16,7 @@ import os
 class AbstractPPO(metaclass=ABCMeta):
     """
     Abstract class for PPO
-
     """
-    writer: SummaryWriter = SummaryWriter()
     critic_loss: nn.MSELoss = nn.MSELoss()
     critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     actor_optimizer: torch.optim.Adam = dataclasses.field(init=False)
@@ -51,11 +49,18 @@ class AbstractPPO(metaclass=ABCMeta):
     minibatch_size: int = dataclasses.field(init=True, default=64)
     continuous_action_space: bool = dataclasses.field(init=True, default=True)
     render: bool = dataclasses.field(init=True, default=False)
+    writer: SummaryWriter = dataclasses.field(init=False,default=None)
+
+
 
 
     @abstractmethod
     def choose_action(self, state):
         pass
+
+    def __post_init__(self):
+        tensorboard_path = f'tensorboard_logs/{self.env_name}'
+        self.writer = SummaryWriter(tensorboard_path)
 
     def decay_learning_rate(self) -> None:
         # decay critic learning rate
@@ -127,14 +132,19 @@ class AbstractPPO(metaclass=ABCMeta):
             os.makedirs(path)
         torch.save(self.actor.state_dict(), f"{path}actor.pth")
         torch.save(self.critic.state_dict(), f"{path}critic.pth")
+        # create a txt file with the hyperparameters and the architecture
+        with open(f"{path}hyperparameters.txt", "w") as f:
+            f.write(f"Hyperparameters and architectures: \n{self.__dict__}")
+
 
     def load_model(self, path: str = 'models/') -> None:
         print("Loading model")
-
+        if not os.path.exists(path):
+            os.makedirs(path)
         self.actor.load_state_dict(torch.load(
-            f"{path}modelactor.pth", map_location=self.device))
+            f"{path}actor.pth", map_location=self.device))
         self.critic.load_state_dict(torch.load(
-            f"{path}modelcritic.pth", map_location=self.device))
+            f"{path}critic.pth", map_location=self.device))
 
     def evaluate(self):
         state, info = self.env.reset()
@@ -142,11 +152,9 @@ class AbstractPPO(metaclass=ABCMeta):
         frames = []
         done = False
         tot_reward = 0
-        portfolio_value = []
         while not done:
             action, _ = self.choose_action(state)
             next_state, reward, done, _, _ = self.env.step(action)
-            portfolio_value.append(self.env.portfolio_after)
             tot_reward += reward
             # next sate is [[value]], we need to convert it to [value]
             state = next_state
@@ -160,7 +168,6 @@ class AbstractPPO(metaclass=ABCMeta):
                             duration=300, loop=0)"""
         print("Reward: ", tot_reward)
         # plot portfolio value over time
-        plt.plot(portfolio_value)
         plt.show()
 
         # self.env.close()

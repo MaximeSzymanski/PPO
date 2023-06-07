@@ -46,6 +46,7 @@ class ContinuousPPO(AbstractPPO):
 
     # Path to save the model
     def __post_init__(self) -> None:
+        super().__post_init__()
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
         if self.render:

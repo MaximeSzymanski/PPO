@@ -60,6 +60,7 @@ It takes several arguments:
 - **timestep_per_update** (int) : number of timesteps before updating the policy. Default : **2048*4**
 - **decay_rate** (float) : decay rate for the learning rate. Default : **0.99**
 - **render** (bool) : "True" or "False" (if you want to render the environement). Default : **"False"**
+- **save_frequency** (int) : number of updates before saving the model. Default : **10**
 
 Example:
 ```bash

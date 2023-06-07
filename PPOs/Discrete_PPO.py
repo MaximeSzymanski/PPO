@@ -85,6 +85,7 @@ class DiscretePPO(AbstractPPO):
 
 
     def __post_init__(self) -> None:
+        super().__post_init__()
         print("Initializing DiscretePPO")
         window_size = 50
         if self.render:

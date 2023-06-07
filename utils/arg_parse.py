@@ -32,6 +32,7 @@ def generate_parser():
     parser.add_argument('--decay_rate', type=int, default=0.99,
                         help='Decay rate for the Adam optimizer learning rate. Default: 0.99')
     parser.add_argument('--render', type=bool, default=False,help='Whether to render the environment. Default: False')
+    parser.add_argument('--save_frequency', type=int, default=10, help='Save every N updates. Default: 10')
     return parser
 
 
@@ -63,4 +64,5 @@ def get_hyperparameters():
     decay_rate = args.decay_rate
     minibatch_size = args.mini_batch_size
     render = args.render
-    return continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render
+    save_frequency = args.save_frequency
+    return continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render, save_frequency

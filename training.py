@@ -7,7 +7,7 @@ if __name__ == '__main__':
 
 
     # Define the parser
-    continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size,render= get_hyperparameters()
+    continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size,render,save_freq= get_hyperparameters()
     PPO = PPOFactory.create_PPO(continuous=continuous, actor_hidden_size=actor_hidden_size,
                                 critic_hidden_size=critic_hidden_size, lr=lr, gamma=gamma,
                                 eps_clip=eps_clip, entropy_coef=entropy_coef, value_loss_coef=value_loss_coef,
@@ -29,7 +29,8 @@ if __name__ == '__main__':
         print('Best reward: ', best)
         print('Average reward: ', avg)
         PPO.update()
-        if i % 10 == 0:
-            PPO.save_model('model')
+        if i % save_freq == 0:
+            path = f'saved_weights/{str(PPO.env_name)}/{str(PPO.current_episode)}/'
+            PPO.save_model(path)
             print('Model saved')
 
