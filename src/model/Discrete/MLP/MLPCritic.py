@@ -3,13 +3,29 @@ from torch import nn as nn
 
 
 class MLPCritic(nn.Module):
-    def __init__(self, state_size: int = 16, action_size: int = 1,
+    """ MLP Critic Network for discrete PPO.
+
+
+    Attributes
+    ----------
+    hidden_size : dict
+        Dictionary containing the hidden layer sizes and activation functions.  {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function.
+    state_size : int
+        Number of features in the state
+
+    Methods
+    -------
+    init_weights(m)
+        Initialize the weights of the model using orthogonal initialization
+
+            """
+    def __init__(self, state_size: int = 16,
                  hidden_size=None) -> None:
         super(MLPCritic, self).__init__()
 
         # Validation
         if hidden_size is None:
-            hidden_size = {"layer": [16], "activ": "tanh"}
+            hidden_size = {"layer": [state_size], "activ": "tanh"}
         if 'layer' not in hidden_size or 'activ' not in hidden_size:
             raise ValueError("Input dictionary must contain 'layer' and 'activ' keys")
 
@@ -46,14 +62,26 @@ class MLPCritic(nn.Module):
         self.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # The input to LSTM must be of shape (batch_size, seq_len, input_size)
+        """Forward pass of the critic network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            State tensor of shape (batch_size, state_size)
+
+        Returns
+        -------
+        torch.Tensor
+            Value tensor of shape (batch_size, 1)
+        """
+
         x = self.Dense(x)
-
-
 
         return x
 
     def _init_weights(self, module) -> None:
+
+
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.orthogonal_(m.weight)

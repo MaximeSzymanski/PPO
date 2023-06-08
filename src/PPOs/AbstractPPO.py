@@ -14,8 +14,97 @@ import os
 
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
-    """
-    Abstract class for PPO
+    """Abstract class for PPO.
+
+    Attributes
+    ----------
+    critic_loss : nn.MSELoss
+        Mean squared error loss.
+    critic_optimizer : torch.optim.Adam
+        Adam optimizer for critic.
+    actor_optimizer : torch.optim.Adam
+        Adam optimizer for actor.
+    buffer : RolloutBuffer
+        Rollout buffer.
+    recurrent : bool
+        Whether the model is recurrent.
+    device : torch.device
+        Device to use.
+    critic : nn.Module
+        Critic network.
+    actor : nn.Module
+        Actor network.
+    action_size : int
+        Action size.
+    state_size : int
+        State size.
+    env : gym.Env
+        Environment.
+    env_name : str
+        Environment name.
+    env_worker : int
+        Number of environment workers.
+    decay_rate : float
+        Decay rate of the learning rate in percentage per update.
+    current_episode : int
+        Current episode.
+    total_updates_counter : int
+        Total number of updates.
+    total_timesteps_counter : int
+        Total number of timesteps.
+    gamma : float
+        Discount factor.
+    gae_lambda : float
+        Lambda coefficient for Generalized Advantage Estimation.
+    value_loss_coef : float
+        Value loss coefficient.
+    entropy_coef : float
+        Entropy coefficient.
+    eps_clip : float
+        Clipping parameter for PPO.
+    lr : float
+        Learning rate.
+    actor_hidden_size : dict
+        Dictionary containing the hidden layer sizes and activation functions.  {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function.
+    critic_hidden_size : dict
+        Dictionary containing the hidden layer sizes and activation functions.  {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function.
+
+    timestep_per_update : int
+        Number of timesteps before updating.
+    timestep_per_episode : int
+        Max number of timesteps per episode.
+    epochs : int
+        Number of epochs per update.
+    minibatch_size : int
+        Minibatch size.
+    continuous_action_space : bool
+        Whether the action space is continuous.
+    render : bool
+        Whether to render the environment.
+    writer : SummaryWriter
+        Tensorboard writer.
+
+
+
+    Methods
+    -------
+    choose_action(state)
+        Choose an action given a state.
+    __post_init__()
+        Initialize tensorboard writer.
+    decay_learning_rate()
+        Decay the learning rate.
+    rollout_episode()
+        Rollout some episodes
+    update()
+        Update the model.
+    save_model()
+        Save the model.
+    load_model()
+        Load the model.
+    evaluate()
+        Evaluate the model.
+
     """
     critic_loss: nn.MSELoss = nn.MSELoss()
     critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
@@ -56,13 +145,22 @@ class AbstractPPO(metaclass=ABCMeta):
 
     @abstractmethod
     def choose_action(self, state):
+        """Choose an action given a state.
+
+        Parameters
+        ----------
+        state : torch.Tensor
+            State."""
         pass
 
     def __post_init__(self):
+        """Initialize tensorboard writer."""
+
         tensorboard_path = f'tensorboard_logs/{self.env_name}'
         self.writer = SummaryWriter(tensorboard_path)
 
     def decay_learning_rate(self) -> None:
+        """Decay the learning rate."""
         # decay critic learning rate
         self.writer.add_scalar(
             "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)
@@ -72,6 +170,15 @@ class AbstractPPO(metaclass=ABCMeta):
             param_group['lr'] *= self.decay_rate
 
     def rollout_episodes(self) -> float:
+        """Rollout some episodes.
+
+        Returns
+        -------
+        best_reward : float
+            Best reward of the episodes.
+        average_reward : float
+            Average reward of the episodes.
+            """
         number_of_step = 0
         reward_sum = 0
         number_episode = 0
@@ -121,13 +228,23 @@ class AbstractPPO(metaclass=ABCMeta):
                             "Best reward", best_reward, self.current_episode)
                     break
         self.buffer.compute_advantages()
-        return best_reward, average_reward/number_episode
+
+        return  best_reward, average_reward/number_episode
 
     @abstractmethod
     def update(self):
+        """Update the actor and the critic."""
         pass
 
-    def save_model(self, path: str = 'models/') -> None:
+    def save_model(self, path: str = 'src/saved_weights') -> None:
+        """Save the model.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path where to save the model, by default 'src/saved_weights'.
+        """
+
         # check if the path exists
         if not os.path.exists(path):
             os.makedirs(path)
@@ -139,6 +256,13 @@ class AbstractPPO(metaclass=ABCMeta):
 
 
     def load_model(self, path: str = 'src/saved_weights/') -> None:
+        """Load the model.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path where to load the model, by default 'src/saved_weights/'.
+        """
         print("Loading model")
         if not os.path.exists(path):
             os.makedirs(path)
@@ -148,6 +272,8 @@ class AbstractPPO(metaclass=ABCMeta):
             f"{path}/{self.env_name}/critic.pth", map_location=self.device))
 
     def evaluate(self):
+        """Evaluate the model."""
+
         output_file = 'results/gif/render.gif'
         frames = []
         portfolio_total = []

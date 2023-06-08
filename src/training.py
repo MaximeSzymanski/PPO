@@ -3,6 +3,9 @@ from src.utils.PPO_factory import PPOFactory
 from src.utils.arg_parse import get_hyperparameters
 
 def start_training():
+    """Launch the training of the model
+
+    """
     # Define the parser
     continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render, save_freq = get_hyperparameters()
     PPO = PPOFactory.create_PPO(continuous=continuous, actor_hidden_size=actor_hidden_size,

@@ -2,17 +2,25 @@ import torch
 from torch import nn as nn
 
 
-class MLPActor(nn.Module):
-    """
-    MLP Actor
-    arguments:
-        state_size: int = 0, state size
-        action_size: int = 0, action size
-        hidden_size: dict = {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function
-    """
-    def __init__(self, state_size: int = 0, action_size: int = 1,
-                 hidden_size=None) -> None:
-        super(MLPActor, self).__init__()
+class MLPCritic(nn.Module):
+    """ MLP Critic Network for continuous PPO.
+
+
+    Attributes
+    ----------
+    hidden_size : dict
+        Dictionary containing the hidden layer sizes and activation functions.  {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function.
+    state_size : int
+        Number of features in the state
+
+    Methods
+    -------
+    init_weights(m)
+        Initialize the weights of the model using orthogonal initialization
+
+        """
+    def __init__(self, state_size: int = 0, hidden_size=None) -> None:
+        super(MLPCritic, self).__init__()
 
         # Validation
         if hidden_size is None:
@@ -30,13 +38,13 @@ class MLPActor(nn.Module):
                 "'activ' key must be a string of activation function names ('relu', 'tanh') separated by comma")
 
         layers = []
-        layer_sizes = [state_size, *hidden_size['layer'], action_size * 2]
+        layer_sizes = [state_size, *hidden_size['layer'], 1]
         activ_funcs = hidden_size['activ'].split(',')
 
         if len(activ_funcs) == 1:
             activ_funcs = activ_funcs * len(hidden_size['layer'])
 
-        if len(activ_funcs) != len(layer_sizes) - 2:  # Substract 2 for state and action sizes
+        if len(activ_funcs) != len(layer_sizes) - 2:  # Substract 2 for state and output sizes
             raise ValueError("The number of activation functions must be equal to the number of layers")
 
         for i in range(len(layer_sizes) - 1):
@@ -48,18 +56,25 @@ class MLPActor(nn.Module):
                 elif activ_funcs[i] == 'tanh':
                     layers.append(nn.Tanh())
                 # Add more activation functions if needed
-        print(layers)
+
         self.Dense = nn.Sequential(*layers)
         self.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.Dense(x)
+        """Forward pass of the model
 
-        half_size = x.shape[-1] // 2
-        means = x[..., :half_size]
-        log_stds = x[..., half_size:]
-        stds = torch.exp(log_stds).clamp(min=-20, max=2)
-        return means, stds
+        Parameters
+        ----------
+        x : torch.Tensor
+            State tensor
+
+        Returns
+        -------
+        torch.Tensor
+            Value of the state
+        """
+        x = self.Dense(x)
+        return x
 
     def _init_weights(self, module) -> None:
         for m in self.modules():

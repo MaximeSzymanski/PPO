@@ -3,6 +3,26 @@ from torch import nn as nn
 
 
 class LSTMActor(nn.Module):
+    """Actor model for LSTM-based PPO.
+
+    Attributes
+    ----------
+
+    hidden_size : dict
+        Dictionary containing the hidden layer sizes and activation functions.  {"layer": [l1_size...,l2_size...,ln_size], "activ": "a1_size...,a2_size...,an_size..."}, hidden layer size and activation function.
+    lstm_hidden_size : int
+        Number of hidden units in the LSTM layer
+    state_size : int
+        Number of features in the state
+    action_size : int
+        Number of actions
+
+    Methods
+    -------
+
+    init_weights(m)
+        Initialize the weights of the model using orthogonal initialization
+    """
     def __init__(self, lstm_hidden_size: int = 16, state_size: int = 0, action_size: int = 1,
                  hidden_size=None) -> None:
         super(LSTMActor, self).__init__()
@@ -33,7 +53,7 @@ class LSTMActor(nn.Module):
             raise ValueError("The number of activation functions must be equal to the number of layers")
 
         # Create LSTM layer
-        self.lstm = nn.LSTM(input_size=1, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=state_size, hidden_size=lstm_hidden_size, num_layers=1, batch_first=True)
 
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -49,6 +69,21 @@ class LSTMActor(nn.Module):
         self.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the model.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (batch_size, seq_len, input_size)
+
+        Returns
+        -------
+        means : torch.Tensor
+            Mean of the normal distribution for each action
+        stds : torch.Tensor
+            Standard deviation of the normal distribution for each action
+        """
+
         # The input to LSTM must be of shape (batch_size, seq_len, input_size)
         # The output of LSTM is of shape (batch_size, seq_len, hidden_size)
         output,_ = self.lstm(x)  # h_n is the hidden state for last timestep

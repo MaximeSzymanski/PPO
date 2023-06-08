@@ -8,10 +8,10 @@ from PIL import Image
 from tqdm import tqdm
 from src.PPOs.AbstractPPO import AbstractPPO
 from src.utils.RolloutBuffer import RolloutBuffer
-from src.model.Continous.MLP.MLPActor import MLPActor
-from src.model.Continous.MLP.MLPCritic import MLPCritic
-from src.model.Continous.LSTM.LSTMActor import LSTMActor
-from src.model.Continous.LSTM.LSTMCritic import LSTMCritic
+from src.model.Continuous.MLP.MLPActor import MLPActor
+from src.model.Continuous.MLP.MLPCritic import MLPCritic
+from src.model.Continuous.LSTM.LSTMActor import LSTMActor
+from src.model.Continuous.LSTM.LSTMCritic import LSTMCritic
 
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
@@ -19,43 +19,21 @@ def get_model_flattened_params(model):
 
 @dataclasses.dataclass
 class ContinuousPPO(AbstractPPO):
-    """
-    Proximal Policy Optimization
-
-    :arguments:
-
-
-        minibatch_size (int): Number of samples per minibatch
-        epochs (int): Number of epochs to train
-        timestep_per_episode (int): Maximum number of timesteps per episode
-        timestep_per_update (int): Number of timesteps per update
-        hidden_size (int): Number of hidden units in the network
-        lr (float): Learning rate
-        eps_clip (float): Clipping parameter for DiscretePPO
-        entropy_coef (float): Entropy coefficient
-        value_loss_coef (float): Value loss coefficient
-        gae_lambda (float): Lambda coefficient for Generalized Advantage Estimation
-        gamma (float): Discount factor
-        decay_rate (float): Decay rate for the Adam optimizer. Pourcentage of the learning rate that will be decayed each update
-        env_worker (int): Number of parallel environments
-        env_name (str): Name of the environment
-
-    :returns: DiscretePPO agent
-
+    """Continuous multi actions Proximal Policy Optimization (PPO) agent.
     """
 
     # Path to save the model
     def __post_init__(self) -> None:
+        """Initialize the PPO agent.
+        """
         super().__post_init__()
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
 
-        if self.env_name== "LunarLander-v2":
-            self.env = gym.make(self.env_name,continuous=True)
-        else:
-            if self.render:
+
+        if self.render:
                 self.env = gym.make(self.env_name, render_mode='human')
-            else:
+        else:
                 self.env = gym.make(self.env_name)
 
         self.state_size = self.env.observation_space.shape[0]
@@ -84,7 +62,23 @@ class ContinuousPPO(AbstractPPO):
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=self.lr)
 
-    def choose_action(self, state: np.ndarray) -> List:
+    def choose_action(self, state: np.ndarray) -> (np.ndarray, torch.Tensor):
+        """Choose an action from the action space.
+
+        Arguments
+        ---------
+        state : np.ndarray
+            The current state of the environment.
+
+        Returns
+        -------
+        action : np.ndarray
+            The action chosen by the agent.
+        log_prob : torch.Tensor
+            The log probability of the action.
+        """
+
+
         with torch.no_grad():
             state = torch.tensor(
                 state, dtype=torch.float32, device=self.device)
@@ -111,7 +105,16 @@ class ContinuousPPO(AbstractPPO):
 
         return action, log_prob
 
-    def rollout_episodes(self) -> float:
+    def rollout_episodes(self) -> (float, float):
+        """Rollout the policy on the environment for a number of episodes.
+
+        Returns
+        -------
+        best_reward : float
+            The best reward for whole episode obtained during the rollout.
+        average_reward : float
+            The average reward for whole episode obtained during the rollout.
+        """
         number_of_step = 0
         reward_sum = 0
         number_episode = 0
@@ -178,6 +181,8 @@ class ContinuousPPO(AbstractPPO):
         return best_reward, average_reward / number_episode
 
     def update(self):
+        """Update the policy using the collected rollouts.
+        """
         torch.autograd.set_detect_anomaly(True)
 
         for _ in tqdm(range(self.epochs)):
@@ -245,6 +250,8 @@ class ContinuousPPO(AbstractPPO):
         self.buffer.clean_buffer()
 
     def evaluate(self):
+        """Evaluate the policy.
+        """
 
         state, info = self.env.reset()
         output_file = 'results/gif/render.gif'

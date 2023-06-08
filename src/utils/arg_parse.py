@@ -3,6 +3,7 @@ import ast
 
 
 def generate_parser():
+    """Generate the parser for the arguments"""
     parser = argparse.ArgumentParser(description='PPO arguments')
     parser.add_argument('--Continuous_or_Discrete', type=str, default='Continuous',
                         help='Continuous or Discrete. Default: Continuous')
@@ -37,6 +38,7 @@ def generate_parser():
 
 
 def get_hyperparameters():
+    """Get the hyperparameters from the parser"""
     args = generate_parser().parse_args()
     # Continue to add other arguments...
     # Parse arguments

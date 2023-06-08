@@ -59,40 +59,19 @@ def get_action_mask(number_stocks_in_portfolio, price_of_stock, portfolio_value,
 
 @dataclasses.dataclass
 class DiscretePPO(AbstractPPO):
-    """
-    Proximal Policy Optimization
-
-    :arguments:
-
-
-        minibatch_size (int): Number of samples per minibatch
-        epochs (int): Number of epochs to train
-        timestep_per_episode (int): Maximum number of timesteps per episode
-        timestep_per_update (int): Number of timesteps per update
-        hidden_size (int): Number of hidden units in the network
-        lr (float): Learning rate
-        eps_clip (float): Clipping parameter for DiscretePPO
-        entropy_coef (float): Entropy coefficient
-        value_loss_coef (float): Value loss coefficient
-        gae_lambda (float): Lambda coefficient for Generalized Advantage Estimation
-        gamma (float): Discount factor
-        decay_rate (float): Decay rate for the Adam optimizer. Pourcentage of the learning rate that will be decayed each update
-        env_worker (int): Number of parallel environments
-        env_name (str): Name of the environment
-
-    :returns: DiscretePPO agent
-    """
+    """Discrete Proximal Policy Optimization (PPO) agent."""
 
 
     def __post_init__(self) -> None:
+        """Perform post initialization checks and setup any additional attributes"""
         super().__post_init__()
         print("Initializing DiscretePPO")
         window_size = 50
-        """if self.render:
+        if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         else:
 
-            self.env = gym.make(self.env_name)"""
+            self.env = gym.make(self.env_name)
         self.env = StockEnv(window_size=50)
         self.state_size = 4
         self.action_size = 3
@@ -110,7 +89,21 @@ class DiscretePPO(AbstractPPO):
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr)
 
-    def choose_action(self, state: np.ndarray) -> List:
+    def choose_action(self, state: np.ndarray) -> (int, torch.Tensor):
+        """Choose an action based on the current state
+
+        Arguments
+        --------
+        state: np.ndarray
+            The current state of the environment
+
+        Returns
+        -------
+        action: int
+            The action to take
+        log_prob: torch.Tensor
+            The log probability of the action
+        """
         with torch.no_grad():
             state = torch.tensor(state,device=self.device,dtype=torch.float32)
             if self.recurrent:
@@ -128,6 +121,7 @@ class DiscretePPO(AbstractPPO):
         return action.item(), log_prob
 
     def update(self):
+        """Update the policy and value parameters using the PPO algorithm"""
         torch.autograd.set_detect_anomaly(True)
 
         for _ in tqdm(range(self.epochs)):
