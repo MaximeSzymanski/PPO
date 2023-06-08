@@ -35,16 +35,6 @@ def trading_strategy(data, portfolio_value):
     return actions
 
 
-@dataclass
-class Stock:
-    """This class represents a stock with its ticker and its values (Open, High, Low, Close)
-
-    Attributes:
-        ticker (str): the ticker of the stock
-        values (pd.DataFrame): the values of the stock
-        """
-    ticker: str
-    values: pd.DataFrame
 
 
 class StockEnv(gym.Env):
@@ -232,7 +222,7 @@ class StockEnv(gym.Env):
         self.days = []
         # Define the walk-forward parameters
 
-        self.stock = self.train_stocks[0]
+        self.stock = self.train_stocks[1]
         # self.starting_point = random.randint(0, len(self.stock.values) - self.window_size - 1)
         self.starting_point = 0
         window_size_episode = 1300  # Window size for each optimization period
@@ -366,8 +356,10 @@ class StockEnv(gym.Env):
 
     def _is_done(self):
         # print(self.current_step+1, len(self.stock.values))
-        return self.current_step + 1 == len(
-            self.stock.values) or self.current_step + 1 == self.starting_point + self.window_size_episode
+        return self.current_step + 1 in [
+            len(self.stock.values),
+            self.starting_point + self.window_size_episode,
+        ]
 
     def step(self, action):
 
@@ -377,6 +369,7 @@ class StockEnv(gym.Env):
         # number_of_stocks : integer between 0 and 99
         self.current_price = self.stock.values['Close'][self.current_step]
         portfolio_before = self.portfolio + self.actions * self.current_price
+
 
         self.next_day_price = self.stock.values['Close'][self.current_step + 1]
         number_of_stocks = action
@@ -442,3 +435,14 @@ class StockEnv(gym.Env):
 
     def close(self):
         pass
+
+@dataclass
+class Stock:
+    """This class represents a stock with its ticker and its values (Open, High, Low, Close)
+
+    Attributes:
+        ticker (str): the ticker of the stock
+        values (pd.DataFrame): the values of the stock
+        """
+    ticker: str
+    values: pd.DataFrame

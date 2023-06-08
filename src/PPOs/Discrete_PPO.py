@@ -3,7 +3,8 @@ import numpy as np
 import torch
 import dataclasses
 from tqdm import tqdm
-from src.utils.STOCKSENV import StockEnv
+import gymnasium as gym
+from src.gym_env.STOCKSENV import StockEnv
 from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
@@ -92,7 +93,7 @@ class DiscretePPO(AbstractPPO):
         else:
 
             self.env = gym.make(self.env_name)"""
-        self.env = StockEnv(window_size)
+        self.env = StockEnv(window_size=50)
         self.state_size = 4
         self.action_size = 3
 

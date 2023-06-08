@@ -245,6 +245,7 @@ class ContinuousPPO(AbstractPPO):
         self.buffer.clean_buffer()
 
     def evaluate(self):
+
         state, info = self.env.reset()
         output_file = 'results/gif/render.gif'
         frames = []

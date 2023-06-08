@@ -138,37 +138,53 @@ class AbstractPPO(metaclass=ABCMeta):
             f.write(f"Hyperparameters and architectures: \n{self.__dict__}")
 
 
-    def load_model(self, path: str = 'models/') -> None:
+    def load_model(self, path: str = 'src/saved_weights/') -> None:
         print("Loading model")
         if not os.path.exists(path):
             os.makedirs(path)
         self.actor.load_state_dict(torch.load(
-            f"{path}actor.pth", map_location=self.device))
+            f"{path}/{self.env_name}/actor.pth", map_location=self.device))
         self.critic.load_state_dict(torch.load(
-            f"{path}critic.pth", map_location=self.device))
+            f"{path}/{self.env_name}/critic.pth", map_location=self.device))
 
     def evaluate(self):
-        state, info = self.env.reset()
         output_file = 'results/gif/render.gif'
         frames = []
-        done = False
+        portfolio_total = []
         tot_reward = 0
-        while not done:
-            action, _ = self.choose_action(state)
-            next_state, reward, done, _, _ = self.env.step(action)
-            tot_reward += reward
-            # next sate is [[value]], we need to convert it to [value]
-            state = next_state
-            # frame = self.env.render()
-            # frame = Image.fromarray(frame)
-            # frames.append(frame)
+        for i in range(50):
+            done = False
+            portfolio = []
+            state, info = self.env.reset()
+
+            while not done:
+                action, _ = self.choose_action(state)
+                next_state, reward, done, _, _ = self.env.step(action)
+                tot_reward += reward
+                portfolio.append(self.env.portfolio_after)
+                print(action)
+                # next sate is [[value]], we need to convert it to [value]
+                state = next_state
+                # frame = self.env.render()
+                # frame = Image.fromarray(frame)
+                # frames.append(frame)
+            portfolio_total.append(portfolio)
         # create a gif using PIL
         """frames[0].save(output_file, format='GIF',
                           append_images=frames[1:],
                             save_all=True,
                             duration=300, loop=0)"""
         print("Reward: ", tot_reward)
-        # plot portfolio value over time
+        # plot mean of each step of the portfolio
+        mean_portfolio = []
+        for i in range(len(portfolio_total[0])):
+            sum_i = 0
+            for sub_arr in portfolio_total:
+                sum_i += sub_arr[i]
+            mean_i = sum_i / len(portfolio_total)
+            mean_portfolio.append(mean_i)
+
+        plt.plot(mean_portfolio)
         plt.show()
 
         # self.env.close()
