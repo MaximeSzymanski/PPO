@@ -61,11 +61,20 @@ It takes several arguments:
 - **decay_rate** (float) : decay rate for the learning rate. Default : **0.99**
 - **render** (bool) : "True" or "False" (if you want to render the environement). Default : **"False"**
 - **save_frequency** (int) : number of updates before saving the model. Default : **10**
+- **shapley_values** (bool) : "True" or "False" (if you want to compute the shapley values). Only works for discrete paradigm. Default : **"False"**
+- **class_name** (list[str]) : Name of the classes (i.e actions) to compute the Shapley values. Default : **"[]"** (only works for discrete paradigm)
+- **features_name** (list[str]) : Name of the features (i.e states) to compute the Shapley values. Default : **"[]"** (only works for discrete paradigm)
 
-Example:
+
+Example for training :
 ```bash
-python training.py --Continous_or_Discrete "Continuous" --recurrent "False" --env_name "LunarLander-v2" --actor_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --critic_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --lr 0.0003 --gamma 0.99 --K_epochs 4 --eps_clip 0.2 --mini_batch_size 64 --entropy_coef 0.01 --value_loss_coef 0.5 --max_timesteps_one_episode 2048 --timestep_per_update 2048*4 --decay_rate 0.99 --render "False"
+python train.py --Continous_or_Discrete "Discrete" --recurrent "False" --env_name "LunarLander-v2" --actor_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --critic_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --lr 0.0003 --gamma 0.99 --K_epochs 4 --eps_clip 0.2 --mini_batch_size 64 --entropy_coef 0.01 --value_loss_coef 0.5 --max_timesteps_one_episode 2048 --timestep_per_update 2048 --decay_rate 0.99 --render "False"
 ```
+Then, for testing :
+```bash
+python eval.py --Continous_or_Discrete "Discrete" --recurrent "False" --env_name "LunarLander-v2" --actor_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --critic_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --lr 0.0003 --gamma 0.99 --K_epochs 4 --eps_clip 0.2 --mini_batch_size 64 --entropy_coef 0.01 --value_loss_coef 0.5 --max_timesteps_one_episode 2048 --timestep_per_update 2048 --decay_rate 0.99 --render "False"
+```
+
 
 ### Choose the architecture of the neural networks
 
