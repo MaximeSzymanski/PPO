@@ -72,9 +72,9 @@ class DiscretePPO(AbstractPPO):
         else:
 
             self.env = gym.make(self.env_name)
-        self.env = StockEnv(window_size=50)
-        self.state_size = 4
-        self.action_size = 3
+
+        self.state_size = self.env.observation_space.shape[0]
+        self.action_size = self.env.action_space.n
 
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
@@ -110,7 +110,8 @@ class DiscretePPO(AbstractPPO):
                 state = state.unsqueeze(0)
             action_probs = self.actor(state)
             # Compute the mask
-            mask = get_action_mask(state[-1][-1][-1].item(), state[-1][-1][1].item(), state[-1][-1][-2].item(),self.device)
+            mask = self.get_mask(state,self.env.action_space.n)
+
             # Mask the action probabilities
             action_probs = action_probs * mask
 
@@ -143,8 +144,9 @@ class DiscretePPO(AbstractPPO):
                     values = values.squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
-                masks_list = [get_action_mask(state[-1][-1].item(), state[-1][1].item(), state[-1][-2].item(),self.device) for state in states]
+                masks_list = [self.get_mask(state,self.env.action_space.n) for state in states]
                 masks = torch.stack(masks_list)
+
                 action_probs = action_probs * masks
 
 

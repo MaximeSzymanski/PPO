@@ -10,7 +10,7 @@ from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-
+import shap
 
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
@@ -83,6 +83,12 @@ class AbstractPPO(metaclass=ABCMeta):
         Whether to render the environment.
     writer : SummaryWriter
         Tensorboard writer.
+    shapley_value : bool
+        Whether to compute shapley value.
+    class_name : list[str]
+        Name of the class.
+    features_name : list[str]
+        List of the features names.
 
 
 
@@ -139,6 +145,10 @@ class AbstractPPO(metaclass=ABCMeta):
     continuous_action_space: bool = dataclasses.field(init=True, default=True)
     render: bool = dataclasses.field(init=True, default=False)
     writer: SummaryWriter = dataclasses.field(init=False,default=None)
+    shapley_value: bool = dataclasses.field(init=True, default=False)
+    class_name: list[str] = dataclasses.field(init=True, default_factory=[])
+    features_name: list[str] = dataclasses.field(init=True, default_factory=[])
+
 
 
 
@@ -230,6 +240,24 @@ class AbstractPPO(metaclass=ABCMeta):
         self.buffer.compute_advantages()
 
         return  best_reward, average_reward/number_episode
+    def get_mask(self,state: torch.Tensor,action_space_size : int) -> torch.Tensor:
+        """Get the mask of the action space.
+
+        Parameters
+        ----------
+        state : torch.Tensor
+            State.
+        action_space_size : int
+            Size of the action space.
+
+        Returns
+        -------
+        mask : torch.Tensor
+            Mask of the action space.
+        """
+        # mask is a list of 1 of size state
+        mask = torch.ones(action_space_size, device=self.device)
+        return mask
 
     @abstractmethod
     def update(self):
@@ -255,7 +283,7 @@ class AbstractPPO(metaclass=ABCMeta):
             f.write(f"Hyperparameters and architectures: \n{self.__dict__}")
 
 
-    def load_model(self, path: str = 'src/saved_weights/') -> None:
+    def load_model(self, path: str = 'src/saved_weights') -> None:
         """Load the model.
 
         Parameters
@@ -266,6 +294,7 @@ class AbstractPPO(metaclass=ABCMeta):
         print("Loading model")
         if not os.path.exists(path):
             os.makedirs(path)
+
         self.actor.load_state_dict(torch.load(
             f"{path}/{self.env_name}/actor.pth", map_location=self.device))
         self.critic.load_state_dict(torch.load(
@@ -275,42 +304,38 @@ class AbstractPPO(metaclass=ABCMeta):
         """Evaluate the model."""
 
         output_file = 'results/gif/render.gif'
-        frames = []
-        portfolio_total = []
+        data_set = []
+        iterations = 0
         tot_reward = 0
-        for i in range(50):
-            done = False
-            portfolio = []
-            state, info = self.env.reset()
+        done = False
+        state, info = self.env.reset()
+        data_set.append(state)
 
-            while not done:
+        while not done and iterations <= self.timestep_per_episode :
                 action, _ = self.choose_action(state)
                 next_state, reward, done, _, _ = self.env.step(action)
-                tot_reward += reward
-                portfolio.append(self.env.portfolio_after)
-                print(action)
-                # next sate is [[value]], we need to convert it to [value]
-                state = next_state
-                # frame = self.env.render()
-                # frame = Image.fromarray(frame)
-                # frames.append(frame)
-            portfolio_total.append(portfolio)
-        # create a gif using PIL
-        """frames[0].save(output_file, format='GIF',
-                          append_images=frames[1:],
-                            save_all=True,
-                            duration=300, loop=0)"""
-        print("Reward: ", tot_reward)
-        # plot mean of each step of the portfolio
-        mean_portfolio = []
-        for i in range(len(portfolio_total[0])):
-            sum_i = 0
-            for sub_arr in portfolio_total:
-                sum_i += sub_arr[i]
-            mean_i = sum_i / len(portfolio_total)
-            mean_portfolio.append(mean_i)
+                iterations += 1
 
-        plt.plot(mean_portfolio)
-        plt.show()
+                data_set.append(next_state)
+                tot_reward += reward
+                state = next_state
+
+
+        print("Reward: ", tot_reward)
+        if self.shapley_value:
+
+            data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
+            explainer  = shap.DeepExplainer(self.actor, data_set)
+
+
+            # compute shapley values
+            shapeley_values = explainer.shap_values(data_set)
+            feature_names = self.features_name
+            class_names = self.class_name
+            # plot shapley values
+
+            shap.summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)
+
+        # plot shapley values for each step
 
         # self.env.close()
