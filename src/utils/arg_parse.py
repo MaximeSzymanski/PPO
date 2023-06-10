@@ -6,7 +6,7 @@ def generate_parser():
     """Generate the parser for the arguments"""
     parser = argparse.ArgumentParser(description='PPO arguments')
     parser.add_argument('--Continuous_or_Discrete', type=str, default='Continuous',
-                        help='Continuous or Discrete. Default: Continuous',choices=['Continuous','Discrete'])
+                        help='Continuous or Discrete. Default: Continuous')
     # Add arguments
     parser.add_argument('--actor_hidden_size', default="{'layer':[64,64,78], 'activ':'tanh,relu,relu'}",
                         help="Dictionary for the actor hidden layers and activation functions. Default: {'layer':[64,64,78], 'activ':'tanh,relu,relu'}")
@@ -44,10 +44,10 @@ def generate_parser():
                         default=10, help='Save every N updates. Default: 10')
     parser.add_argument('--shapley_values', type=bool, default=False,
                         help='Whether to compute the Shapley values in evaluating mode. Default: False')
-    parser.add_argument('--class_name', type=str, default=[
-    ], help='Name of the classes (i.e actions) to compute the Shapley values. Default: []',nargs='+')
-    parser.add_argument('--features_name', type=str, default=[
-    ], help='Name of the features (i.e observations) to compute the Shapley values. Default: []',nargs='+')
+    parser.add_argument('--class_name', type=list[str], default=[
+    ], help='Name of the classes (i.e actions) to compute the Shapley values. Default: []')
+    parser.add_argument('--features_name', type=list[str], default=[
+    ], help='Name of the features (i.e observations) to compute the Shapley values. Default: []')
 
     return parser
 
@@ -65,6 +65,9 @@ def get_hyperparameters(eval=False):
         continuous = True
     elif args.Continuous_or_Discrete == 'Discrete':
         continuous = False
+    else:
+        raise ValueError(
+            'Continuous_or_Discrete should be either Continuous or Discrete')
 
     if not eval:
         if args.shapley_values:
