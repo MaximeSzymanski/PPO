@@ -65,6 +65,7 @@ class DiscretePPO(AbstractPPO):
     def __post_init__(self) -> None:
         """Perform post initialization checks and setup any additional attributes"""
         super().__post_init__()
+
         print("Initializing DiscretePPO")
         window_size = 50
         if self.render:
@@ -72,7 +73,7 @@ class DiscretePPO(AbstractPPO):
         else:
 
             self.env = gym.make(self.env_name)
-
+        print(self.env.observation_space)
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
 
@@ -88,6 +89,7 @@ class DiscretePPO(AbstractPPO):
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr)
+        # write the hyperparameters
 
     def choose_action(self, state: np.ndarray) -> (int, torch.Tensor):
         """Choose an action based on the current state
@@ -108,6 +110,8 @@ class DiscretePPO(AbstractPPO):
             state = torch.tensor(state,device=self.device,dtype=torch.float32)
             if self.recurrent:
                 state = state.unsqueeze(0)
+
+
             action_probs = self.actor(state)
             # Compute the mask
             mask = self.get_mask(state,self.env.action_space.n)

@@ -258,19 +258,19 @@ class ContinuousPPO(AbstractPPO):
         frames = []
         total_reward = 0
         done = False
-        while not done:
+        while not done and len(frames) < self.timestep_per_episode:
             action, _ = self.choose_action(state)
             next_state, reward, done, _, _ = self.env.step(action)
             # next sate is [[value]], we need to convert it to [value]
             state = next_state
             frame = self.env.render()
-            frame = Image.fromarray(frame)
-            frames.append(frame)
+            """frame = Image.fromarray(frame)"""
+            """frames.append(frame)"""
             total_reward += reward
         # create a gif using PIL
-        frames[0].save(output_file, format='GIF',
+        """frames[0].save(output_file, format='GIF',
                        append_images=frames[1:],
                        save_all=True,
-                       duration=300, loop=0)
+                       duration=300, loop=0)"""
         print(total_reward)
         self.env.close()

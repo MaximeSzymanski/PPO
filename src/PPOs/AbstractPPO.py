@@ -10,7 +10,6 @@ from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import shap
 
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
@@ -167,7 +166,21 @@ class AbstractPPO(metaclass=ABCMeta):
         """Initialize tensorboard writer."""
 
         tensorboard_path = f'tensorboard_logs/{self.env_name}'
+        # create folder if not exists
+        if not os.path.exists(tensorboard_path):
+            os.makedirs(tensorboard_path)
+        # get last run number
+        run_number = 0
+        for folder_name in os.listdir(tensorboard_path):
+            if folder_name.startswith('run_'):
+                run_number = max(run_number, int(folder_name[4:]))
+                run_number += 1
+        tensorboard_path = f'{tensorboard_path}/run_{run_number}'
+
         self.writer = SummaryWriter(tensorboard_path)
+
+
+
 
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
@@ -213,6 +226,7 @@ class AbstractPPO(metaclass=ABCMeta):
                     state, device=self.device, dtype=torch.float32)
                 """if self.recurrent:
                     state = state.unsqueeze(1)"""
+                state = state.unsqueeze(0)
                 value = self.critic(state)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)
@@ -283,7 +297,7 @@ class AbstractPPO(metaclass=ABCMeta):
             f.write(f"Hyperparameters and architectures: \n{self.__dict__}")
 
 
-    def load_model(self, path: str = 'src/saved_weights') -> None:
+    def load_model(self, path: str = 'saved_weights') -> None:
         """Load the model.
 
         Parameters
@@ -294,23 +308,26 @@ class AbstractPPO(metaclass=ABCMeta):
         print("Loading model")
         if not os.path.exists(path):
             os.makedirs(path)
-
+        path = f'{path}/{self.env_name}'
+        # get the last subfolder in the path
+        last_subfolder = max(
+            (f.path for f in os.scandir(path) if f.is_dir()), key=os.path.getmtime
+        )
+        # get the name of the environment
         self.actor.load_state_dict(torch.load(
-            f"{path}/{self.env_name}/actor.pth", map_location=self.device))
+          f"{last_subfolder}/actor.pth", map_location=self.device))
         self.critic.load_state_dict(torch.load(
-            f"{path}/{self.env_name}/critic.pth", map_location=self.device))
+            f"{last_subfolder}/critic.pth", map_location=self.device))
 
     def evaluate(self):
         """Evaluate the model."""
 
         output_file = 'results/gif/render.gif'
-        data_set = []
         iterations = 0
         tot_reward = 0
         done = False
         state, info = self.env.reset()
-        data_set.append(state)
-
+        data_set = [state]
         while not done and iterations <= self.timestep_per_episode :
                 action, _ = self.choose_action(state)
                 next_state, reward, done, _, _ = self.env.step(action)
@@ -322,7 +339,7 @@ class AbstractPPO(metaclass=ABCMeta):
 
 
         print("Reward: ", tot_reward)
-        if self.shapley_value:
+        """if self.shapley_value:
 
             data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
             explainer  = shap.DeepExplainer(self.actor, data_set)
@@ -334,7 +351,7 @@ class AbstractPPO(metaclass=ABCMeta):
             class_names = self.class_name
             # plot shapley values
 
-            shap.summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)
+            shap.summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)"""
 
         # plot shapley values for each step
 

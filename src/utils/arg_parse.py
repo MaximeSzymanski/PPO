@@ -1,10 +1,12 @@
 import argparse
 import ast
-
+import sys
+from conf import ArgsHelper
 
 def generate_parser():
     """Generate the parser for the arguments"""
     parser = argparse.ArgumentParser(description='PPO arguments')
+
     parser.add_argument('--Continuous_or_Discrete', type=str, default='Continuous',
                         help='Continuous or Discrete. Default: Continuous', choices=['Continuous', 'Discrete'])
     # Add arguments
@@ -19,10 +21,10 @@ def generate_parser():
     parser.add_argument('--K_epochs', type=int, default=10, help='Number of epochs'
                                                                  ' to update the policy for. Default: 10')
     parser.add_argument('--mini_batch_size', type=int,
-                        default=50, help='Size of the mini batch. Default: 64')
+                        default=64, help='Size of the mini batch. Default: 64')
     parser.add_argument('--eps_clip', type=float, default=0.2,
                         help='Clip parameter for PPO .Default: 0.2')
-    parser.add_argument('--entropy_coef', type=float, default=0.1,
+    parser.add_argument('--entropy_coef', type=float, default=0.01,
                         help='Entropy term coefficient. Default: 0.01')
     parser.add_argument('--value_loss_coef', type=float,
                         default=0.5, help='Value loss coefficient. Default: 0.5')
@@ -54,7 +56,18 @@ def generate_parser():
 
 def get_hyperparameters(eval=False):
     """Get the hyperparameters from the parser"""
+
     args = generate_parser().parse_args()
+    if len(sys.argv) == 1:
+        print('=============================================================')
+        print('No arguments provided, config.py will be used')
+        print('=============================================================')
+
+    else:
+        actor_hidden_size = ast.literal_eval(args.actor_hidden_size)
+        critic_hidden_size = ast.literal_eval(args.critic_hidden_size)
+
+
     # Continue to add other arguments...
     # Parse arguments
     # check if the environment is continuous or discrete
@@ -83,8 +96,7 @@ def get_hyperparameters(eval=False):
                     'class_name and features_name should be list of str')
 
     # Convert string dictionaries to actual dictionaries
-    actor_hidden_size = ast.literal_eval(args.actor_hidden_size)
-    critic_hidden_size = ast.literal_eval(args.critic_hidden_size)
+
     lr = args.lr
     gamma = args.gamma
     K_epochs = args.K_epochs

@@ -44,7 +44,7 @@ python training.py --args
 
 ### Arguments
 It takes several arguments:
-- **Continous_or_Discrete** (str) : "Continuous" or "Discrete" environment. Default : **"Continuous"**
+- **Continuous_or_Discrete** (str) : "Continuous" or "Discrete" environment. Default : **"Continuous"**
 - **recurrent** (bool) : "True" or "False" (if you want to use a recurrent neural network). Default : **"False"**
 - **env_name** (str) : "LunarLander-v2", "BipedalWalker-v2" or "DoomBasic-v0. Default : **"LunarLander-v2"**
 - **actor_hidden_size** (dict) : size of the hidden layer of the actor, and the activation function. Default : **{"layer" : [32,32],"activ" : ["relu"]}**
