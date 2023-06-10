@@ -73,8 +73,16 @@ class DiscretePPO(AbstractPPO):
 
             self.env = gym.make(self.env_name)
 
+
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
+
+        if self.shapley_value:
+            if len(self.features_name) != self.state_size:
+                raise ValueError("The number of features name must be equal to the number of observations")
+            if len(self.class_name) != self.action_size:
+                raise ValueError("The number of class must be equal to the number of actions")
+
 
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
@@ -131,6 +139,8 @@ class DiscretePPO(AbstractPPO):
 
             for i in range(0, num_samples, self.minibatch_size):
                 batch_indices = indices[i:i + self.minibatch_size]
+
+
                 states, actions, old_log_probs, advantages, discounted_rewards = self.buffer.get_minibatch(
                     batch_indices)
 

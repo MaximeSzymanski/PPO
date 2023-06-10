@@ -364,9 +364,6 @@ class StockEnv(gym.Env):
     def step(self, action):
 
         self.reward = 0
-        # action is a tuple of (buy_sell_hold, number_of_stocks)
-        # buy_sell_hold : 0 : hold, 1 : buy, 2 : sell
-        # number_of_stocks : integer between 0 and 99
         self.current_price = self.stock.values['Close'][self.current_step]
         portfolio_before = self.portfolio + self.actions * self.current_price
 
@@ -374,11 +371,7 @@ class StockEnv(gym.Env):
         self.next_day_price = self.stock.values['Close'][self.current_step + 1]
         number_of_stocks = action
         is_finish, hold_reward = self._evaluate_action(number_of_stocks)
-
-        # aplly interest penalty
         self.portfolio = self.portfolio * (1 - self.interest)
-
-        # self._compute_reward(action)
         if is_finish:
             print("ERROR")
         info = {}
@@ -386,44 +379,26 @@ class StockEnv(gym.Env):
         self.current_iteration += 1
         done = self._is_done()
         if done:
-            # sell the stocks
             self.portfolio += self.actions * self.next_day_price
-            # self.writer.add_scalar("End portfolio value", self.portfolio, self.number_episode)
-
             self.actions = 0
             self.number_episode += 1
 
         self._get_stocks_features()
-        # print('reward step : ', self.current_step, reward)
         self.add_day(self.daily_return, self.close,
                      self.portfolio, self.actions)
-        # print('day :',self.days)
 
         info['portfolio'] = self.portfolio
         info['actions'] = self.actions * self.next_day_price
 
-        if is_finish:
-            # done = True
-            # self.render(
-            pass
-        if done:
-            # self.render()
-            pass
         portfolio_after = self.portfolio + self.actions * self.next_day_price
-        # done = done or is_finish
-        # self.writer.add_scalar("hold per day", self.total_hold_days, self.total_days)
-        # elf.writer.add_scalar("buy per day", self.buy_days, self.total_days)
-        # self.writer.add_scalar("sell per day", self.sell_days, self.total_days)
-        # print(self.portfolio_after)
+
         self.total_days += 1
-        # self.writer.add_scalar("portfolio", portfolio_after, self.total_days)
-        # self.writer.add_scalar("portfolio diff", portfolio_after - portfolio_before, self.total_days)
+
         if portfolio_after == 0:
             portfolio_after = 1
         self.portfolio_after = portfolio_after
         self.reward = portfolio_after - portfolio_before
-        # put reward as a non tensor
-        # put reward as a non tensor
+
         self.reward_list.append(self.reward)
 
         return self._get_obs(), self.reward, done, False, info
