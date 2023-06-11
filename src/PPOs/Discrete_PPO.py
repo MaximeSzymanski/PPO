@@ -3,13 +3,10 @@ import numpy as np
 import torch
 import dataclasses
 from tqdm import tqdm
-import gymnasium as gym
-from src.gym_env.STOCKSENV import StockEnv
 from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
 from src.model.Discrete.MLP.MLPCritic import MLPCritic
-from src.utils.RolloutBuffer import RolloutBuffer
 from src.PPOs.AbstractPPO import AbstractPPO
 
 
@@ -66,16 +63,7 @@ class DiscretePPO(AbstractPPO):
         """Perform post initialization checks and setup any additional attributes"""
         super().__post_init__()
 
-        print("Initializing DiscretePPO")
-        window_size = 50
-        if self.render:
-            self.env = gym.make(self.env_name, render_mode='human')
-        else:
 
-            self.env = gym.make(self.env_name)
-        print(self.env.observation_space)
-        self.state_size = self.env.observation_space.shape[0]
-        self.action_size = self.env.action_space.n
 
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
@@ -85,7 +73,6 @@ class DiscretePPO(AbstractPPO):
             self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = MLPCritic(state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
-        self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr)

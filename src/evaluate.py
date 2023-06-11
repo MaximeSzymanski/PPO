@@ -5,7 +5,7 @@ def evaluate_model():
     """Launch the evaluation of the model
 
     """
-    continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render,save_frequency, shapley_values, class_name, features_name= get_hyperparameters(eval=True)
+    continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render,save_frequency, shapley_values, class_name, features_name, record_video= get_hyperparameters(eval=True)
 
     PPO = PPOFactory.create_PPO(continuous=continuous, actor_hidden_size=actor_hidden_size,
                                 critic_hidden_size=critic_hidden_size, lr=lr, gamma=gamma,
@@ -15,7 +15,8 @@ def evaluate_model():
                                 decay_rate=decay_rate, minibatch_size=minibatch_size,
                                 timestep_per_episode=max_timesteps_one_episode,
                                 epochs=K_epochs, render=render,
-                                shapley_values=shapley_values, class_name=class_name, features_name=features_name)
+                                shapley_values=shapley_values, class_name=class_name, features_name=features_name,
+                                record_video=record_video)
 
     print(PPO)
 

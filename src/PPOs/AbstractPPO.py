@@ -2,13 +2,15 @@
 
 import dataclasses
 from abc import ABCMeta, abstractmethod
+
+from PIL import Image as Img
+from PIL import ImageTk
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
 import gymnasium as gym
 from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 
 @dataclasses.dataclass
@@ -147,6 +149,7 @@ class AbstractPPO(metaclass=ABCMeta):
     shapley_value: bool = dataclasses.field(init=True, default=False)
     class_name: list[str] = dataclasses.field(init=True, default_factory=[])
     features_name: list[str] = dataclasses.field(init=True, default_factory=[])
+    record_video: bool = dataclasses.field(init=True, default=False)
 
 
 
@@ -178,6 +181,25 @@ class AbstractPPO(metaclass=ABCMeta):
         tensorboard_path = f'{tensorboard_path}/run_{run_number}'
 
         self.writer = SummaryWriter(tensorboard_path)
+        self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
+
+        print("Initializing DiscretePPO")
+        window_size = 50
+        if self.render:
+            self.env = gym.make(self.env_name, render_mode='human')
+        elif self.record_video:
+            self.env = gym.make(self.env_name, render_mode='rgb_array')
+        else:
+            self.env = gym.make(self.env_name)
+
+
+        print(self.env.observation_space)
+        self.state_size = self.env.observation_space.shape[0]
+
+        if self.continuous_action_space == True:
+            self.action_size = self.env.action_space.shape[0]
+        else:
+            self.action_size = self.env.action_space.n
 
 
 
@@ -321,28 +343,41 @@ class AbstractPPO(metaclass=ABCMeta):
 
     def evaluate(self):
         """Evaluate the model."""
-
-        output_file = 'results/gif/render.gif'
+        if self.record_video:
+            output_file = f'results/gif/{str(self.env_name)}.gif'
+            frames = []
         iterations = 0
+        print('About to start')
         tot_reward = 0
         done = False
+
         state, info = self.env.reset()
         data_set = [state]
         while not done and iterations <= self.timestep_per_episode :
                 action, _ = self.choose_action(state)
                 next_state, reward, done, _, _ = self.env.step(action)
                 iterations += 1
+                if self.record_video:
+                    frame = self.env.render()
+                    frame = Img.fromarray(frame)
+                    frames.append(frame)
 
                 data_set.append(next_state)
                 tot_reward += reward
                 state = next_state
 
 
-        print("Reward: ", tot_reward)
+
+        if self.record_video:
+            frames[0].save(output_file, format='GIF',
+                                     append_images=frames[1:],
+                                       save_all=True,
+                                       duration=300, loop=0)
         """if self.shapley_value:
 
             data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
-            explainer  = shap.DeepExplainer(self.actor, data_set)
+
+            explainer  = shap.KernelExplainer(self.actor, data_set)
 
 
             # compute shapley values
@@ -351,8 +386,7 @@ class AbstractPPO(metaclass=ABCMeta):
             class_names = self.class_name
             # plot shapley values
 
-            shap.summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)"""
+            shap.summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)
 
-        # plot shapley values for each step
-
-        # self.env.close()
+        else:
+            pass"""

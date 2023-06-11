@@ -31,16 +31,8 @@ class ContinuousPPO(AbstractPPO):
         print('env_name: ', self.env_name)
 
 
-        if self.render:
-                self.env = gym.make(self.env_name, render_mode='human')
-        else:
-                self.env = gym.make(self.env_name)
 
-        self.state_size = self.env.observation_space.shape[0]
 
-        self.action_size = len(self.env.action_space.sample())
-        print("State size: ", self.state_size)
-        print("Action size: ", self.action_size)
         self.episode_counter = 0
         if self.recurrent:
 
@@ -54,8 +46,6 @@ class ContinuousPPO(AbstractPPO):
 
             self.critic = MLPCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size)
-        self.buffer = RolloutBuffer(
-            minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
         self.actor_optimizer = torch.optim.Adam(
             self.actor.parameters(), lr=self.lr)
@@ -249,28 +239,4 @@ class ContinuousPPO(AbstractPPO):
         self.decay_learning_rate()
         self.buffer.clean_buffer()
 
-    def evaluate(self):
-        """Evaluate the policy.
-        """
 
-        state, info = self.env.reset()
-        output_file = 'results/gif/render.gif'
-        frames = []
-        total_reward = 0
-        done = False
-        while not done and len(frames) < self.timestep_per_episode:
-            action, _ = self.choose_action(state)
-            next_state, reward, done, _, _ = self.env.step(action)
-            # next sate is [[value]], we need to convert it to [value]
-            state = next_state
-            frame = self.env.render()
-            """frame = Image.fromarray(frame)"""
-            """frames.append(frame)"""
-            total_reward += reward
-        # create a gif using PIL
-        """frames[0].save(output_file, format='GIF',
-                       append_images=frames[1:],
-                       save_all=True,
-                       duration=300, loop=0)"""
-        print(total_reward)
-        self.env.close()

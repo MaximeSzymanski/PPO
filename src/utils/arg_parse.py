@@ -50,6 +50,8 @@ def generate_parser():
     ], help='Name of the classes (i.e actions) to compute the Shapley values. Default: []', nargs='+')
     parser.add_argument('--features_name', type=str, default=[
     ], help='Name of the features (i.e observations) to compute the Shapley values. Default: []', nargs='+')
+    parser.add_argument('--record_video', type=bool, default=False,
+                       help='Whether to record a video of the agent. Default: False')
 
     return parser
 
@@ -67,7 +69,6 @@ def get_hyperparameters(eval=False):
         actor_hidden_size = ast.literal_eval(args.actor_hidden_size)
         critic_hidden_size = ast.literal_eval(args.critic_hidden_size)
 
-
     # Continue to add other arguments...
     # Parse arguments
     # check if the environment is continuous or discrete
@@ -81,6 +82,9 @@ def get_hyperparameters(eval=False):
 
 
     if not eval:
+        if args.record_video:
+            raise ValueError(
+                'Video can only be recorded in evaluation mode')
         if args.shapley_values:
             raise ValueError(
                 'Shapley values can only be computed in evaluation mode')
@@ -115,5 +119,6 @@ def get_hyperparameters(eval=False):
     shapley_values = args.shapley_values
     class_name = args.class_name
     features_name = args.features_name
+    record_video = args.record_video
 
-    return continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render, save_frequency, shapley_values, class_name, features_name
+    return continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render, save_frequency, shapley_values, class_name, features_name, record_video
