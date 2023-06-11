@@ -113,6 +113,11 @@ Here are the results for BipedalWalker-v2 environement (reward per episode):
 | <img src=results/curves/biped_walker.png width=100%> | <img src=results/gif/bipedal_walker.gif width=100%> |
 
 
+### Pendulum-v1 (Continuous)
+
+Here are the results for Pendulum-v1 environement:
+
+<img src="results/gif/pendulum.gif">
 
 ### Fibonacci sequence (Discrete LSTM)
 
