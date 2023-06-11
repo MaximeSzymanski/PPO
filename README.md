@@ -64,6 +64,7 @@ It takes several arguments:
 - **shapley_values** (bool) : "True" or "False" (if you want to compute the shapley values). Only works for discrete paradigm. Default : **"False"**
 - **class_name** (list[str]) : Name of the classes (i.e actions) to compute the Shapley values. Default : **"[]"** (only works for discrete paradigm)
 - **features_name** (list[str]) : Name of the features (i.e states) to compute the Shapley values. Default : **"[]"** (only works for discrete paradigm)
+- **record_video** (bool) : "True" or "False" (if you want to record a video of the environement). Default : **"False"**
 
 
 Example for training :
