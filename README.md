@@ -43,6 +43,21 @@ To run the training:
 ```bash
 python training.py --args
 ```
+## Launch the evaluation
+
+To run the evaluation:
+
+```bash
+python eval.py --args
+```
+
+## Launch Tensorboard
+
+To run Tensorboard:
+
+```bash
+tensorboard --logdir tensorboard_logs
+```
 
 ### Arguments
 It takes several arguments:
@@ -139,4 +154,9 @@ Here are the results for Fibonacci sequence (reward per episode):
 | <img src=results/curves/fibonacci_continuous.png width=100%> |
 
 
+## Future improvements planned
 
+- [ ] Add a CNN Actor and Critic for image-based environements
+- [ ] Add a multi process support to speed up rollout over multiple CPU cores
+- [ ] Add a multi agent support
+- [ ] Add a shapley values computation for continuous paradigm
