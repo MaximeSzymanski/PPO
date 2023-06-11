@@ -61,28 +61,31 @@ tensorboard --logdir tensorboard_logs
 
 ### Arguments
 It takes several arguments:
-- **Continuous_or_Discrete** (str) : "Continuous" or "Discrete" environment. Default : **"Continuous"**
-- **recurrent** (bool) : "True" or "False" (if you want to use a recurrent neural network). Default : **"False"**
-- **env_name** (str) : "LunarLander-v2", "BipedalWalker-v2" or "DoomBasic-v0. Default : **"LunarLander-v2"**
-- **actor_hidden_size** (dict) : size of the hidden layer of the actor, and the activation function. Default : **{"layer" : [32,32],"activ" : ["relu"]}**
-- **critic_hidden_size** (dict) : size of the hidden layer of the critic, and the activation function. Default : **{"layer" : [32,32],"activ" : ["relu"]}**
-- **lr** (float) : learning rate. Default : **0.0003**
-- **gamma** (float) : discount factor. Default : **0.99**
-- **K_epochs** (int) : number of epochs of gradient descent. Default : **4**
-- **eps_clip** (float) : clip parameter for PPO. Default : **0.2**
-- **mini_batch_size** (int) : size of the batch for gradient descent. Default : **64**
-- **entropy_coef** (float) : entropy coefficient. Default : **0.01**
-- **value_loss_coef** (float) : value loss coefficient. Default : **0.5**
-- **max_timesteps_one_episode** (int) : maximum number of timesteps in one episode. Default : **2048**
-- **timestep_per_update** (int) : number of timesteps before updating the policy. Default : **2048*4**
-- **decay_rate** (float) : decay rate for the learning rate. Default : **0.99**
-- **render** (bool) : "True" or "False" (if you want to render the environement). Default : **"False"**
-- **save_frequency** (int) : number of updates before saving the model. Default : **10**
-- **shapley_values** (bool) : "True" or "False" (if you want to compute the shapley values). Only works for discrete paradigm. Default : **"False"**
-- **class_name** (list[str]) : Name of the classes (i.e actions) to compute the Shapley values. Default : **"[]"** (only works for discrete paradigm)
-- **features_name** (list[str]) : Name of the features (i.e states) to compute the Shapley values. Default : **"[]"** (only works for discrete paradigm)
-- **record_video** (bool) : "True" or "False" (if you want to record a video of the environement). Default : **"False"**
+Here is the information in a Markdown table format:
 
+| Name                      | Description                                                           | Default                                |
+|---------------------------|-----------------------------------------------------------------------|----------------------------------------|
+| Continuous_or_Discrete    | "Continuous" or "Discrete" environment.                               | "Continuous"                           |
+| recurrent                 | "True" or "False" (if you want to use a recurrent neural network).    | "False"                                |
+| env_name                  | "LunarLander-v2", "BipedalWalker-v2" or "DoomBasic-v0".               | "LunarLander-v2"                       |
+| actor_hidden_size         | Size of the hidden layer of the actor, and the activation function.   | {"layer" : [32,32],"activ" : ["relu"]} |
+| critic_hidden_size        | Size of the hidden layer of the critic, and the activation function.  | {"layer" : [32,32],"activ" : ["relu"]} |
+| lr                        | Learning rate.                                                        | 0.0003                                 |
+| gamma                     | Discount factor.                                                      | 0.99                                   |
+| K_epochs                  | Number of epochs of gradient descent.                                 | 4                                      |
+| eps_clip                  | Clip parameter for PPO.                                               | 0.2                                    |
+| mini_batch_size           | Size of the batch for gradient descent.                               | 64                                     |
+| entropy_coef              | Entropy coefficient.                                                  | 0.01                                   |
+| value_loss_coef           | Value loss coefficient.                                               | 0.5                                    |
+| max_timesteps_one_episode | Maximum number of timesteps in one episode.                           | 2048                                   |
+| timestep_per_update       | Number of timesteps before updating the policy.                       | 2048*4                                 |
+| decay_rate                | Decay rate for the learning rate.                                     | 0.99                                   |
+| render                    | "True" or "False" (if you want to render the environment).            | "False"                                |
+| save_frequency            | Number of updates before saving the model.                            | 10                                     |
+| shapley_values            | "True" or "False" (if you want to compute the shapley values).        | "False"                                |
+| class_name                | Name of the classes (i.e actions) to compute the Shapley values.      | "[]"                                   |
+| features_name             | Name of the features (i.e states) to compute the Shapley values.      | "[]"                                   |
+| record_video              | "True" or "False" (if you want to record a video of the environment). | "False"                                |
 
 Example for training :
 ```bash
@@ -90,7 +93,7 @@ python train.py --Continous_or_Discrete "Discrete" --recurrent "False" --env_nam
 ```
 Then, for testing :
 ```bash
-python eval.py --Continous_or_Discrete "Discrete" --recurrent "False" --env_name "LunarLander-v2" --actor_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --critic_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --lr 0.0003 --gamma 0.99 --K_epochs 4 --eps_clip 0.2 --mini_batch_size 64 --entropy_coef 0.01 --value_loss_coef 0.5 --max_timesteps_one_episode 2048 --timestep_per_update 2048 --decay_rate 0.99 --render "False"
+python eval.py --Continous_or_Discrete "Discrete" --recurrent "False" --env_name "LunarLander-v2" --actor_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --critic_hidden_size '{"layer" : [32,32],"activ" : ["relu"]}' --lr 0.0003 --gamma 0.99 --K_epochs 4 --eps_clip 0.2 --mini_batch_size 64 --entropy_coef 0.01 --value_loss_coef 0.5 --max_timesteps_one_episode 2048 --timestep_per_update 2048  --render "True"
 ```
 
 
