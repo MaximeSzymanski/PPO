@@ -22,10 +22,9 @@ It handles MultiActions (like BipedalWalker-v2 environement).
 Discrete PPO is used for discrete action space (like LunarLander-v2 environement).
 It doesn't handle MultiDiscrete (like LunarLander-v2 environement).
 
-### Recurrent PPO
 
-Recurrent PPO is used for environement with recurrent neural network (like Doom environement).
-You have to use the LSTMActor and LSTMCritic classes.
+Both discrete and continuous PPO have a recurrent support, using LSTM.
+
 Just specify it in the arguments when you launch the script.
 
 For the moment, MultiDiscrete  is not implemented (I'm working on it).
@@ -61,7 +60,6 @@ tensorboard --logdir tensorboard_logs
 
 ### Arguments
 It takes several arguments:
-Here is the information in a Markdown table format:
 
 | Name                      | Description                                                           | Default                                |
 |---------------------------|-----------------------------------------------------------------------|----------------------------------------|
