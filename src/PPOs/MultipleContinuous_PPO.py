@@ -12,6 +12,8 @@ from src.model.Continuous.MLP.MLPActor import MLPActor
 from src.model.Continuous.MLP.MLPCritic import MLPCritic
 from src.model.Continuous.LSTM.LSTMActor import LSTMActor
 from src.model.Continuous.LSTM.LSTMCritic import LSTMCritic
+from src.model.Continuous.CNN.CNNActor import CNNActor
+from src.model.Continuous.CNN.CNNCritic import CNNCritic
 
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
@@ -46,6 +48,7 @@ class ContinuousPPO(AbstractPPO):
 
             self.critic = MLPCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size)
+
 
         self.actor_optimizer = torch.optim.Adam(
             self.actor.parameters(), lr=self.lr)
