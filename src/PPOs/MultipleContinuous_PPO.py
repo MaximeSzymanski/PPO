@@ -39,21 +39,17 @@ class ContinuousPPO(AbstractPPO):
         if self.recurrent:
 
             self.actor = LSTMActor(state_size=self.state_size,
-                              action_size=self.action_size, hidden_size=self.actor_hidden_size)
+                              action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = LSTMCritic(
-                state_size=self.state_size, hidden_size=self.critic_hidden_size)
+                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
         else:
             self.actor = MLPActor(state_size=self.state_size,
-                             action_size=self.action_size, hidden_size=self.actor_hidden_size)
+                             action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
 
             self.critic = MLPCritic(
-                state_size=self.state_size, hidden_size=self.critic_hidden_size)
+                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
-
-        self.actor_optimizer = torch.optim.Adam(
-            self.actor.parameters(), lr=self.lr)
-        self.critic_optimizer = torch.optim.Adam(
-            self.critic.parameters(), lr=self.lr)
+        self.initialize_optimizer()
 
     def choose_action(self, state: np.ndarray) -> (np.ndarray, torch.Tensor):
         """Choose an action from the action space.
@@ -109,7 +105,6 @@ class ContinuousPPO(AbstractPPO):
             The average reward for whole episode obtained during the rollout.
         """
         number_of_step = 0
-        reward_sum = 0
         number_episode = 0
         average_reward = 0
         best_reward = 0
@@ -120,7 +115,6 @@ class ContinuousPPO(AbstractPPO):
             state = state[0]
             self.current_episode += 1
             ep_reward = 0
-            ep_steps = 0
             done = False
             for _ in range(self.timestep_per_episode):
 
@@ -132,7 +126,6 @@ class ContinuousPPO(AbstractPPO):
 
                 next_state = next_state.reshape(-1)
                 self.total_timesteps_counter += 1
-                reward_sum += reward
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
@@ -154,13 +147,11 @@ class ContinuousPPO(AbstractPPO):
                     reward, value, log_prob, action, done, state, mask)
                 state = next_state
                 number_of_step += 1
-                ep_steps += 1
                 if done or number_of_step == self.timestep_per_update:
 
                     number_episode += 1
                     self.episode_counter += 1
                     average_reward += ep_reward
-                    ep_reward = ep_reward
                     self.writer.add_scalar(
                         "Reward", ep_reward, self.current_episode)
 
@@ -206,7 +197,6 @@ class ContinuousPPO(AbstractPPO):
                 discounted_rewards = torch.squeeze(discounted_rewards)
                 actions = torch.stack(actions)
 
-                #actions = actions.squeeze(1)
                 new_log_probs = dist.log_prob(actions)
                 advantages = torch.stack(advantages)
                 advantages = torch.squeeze(advantages)

@@ -74,8 +74,7 @@ class DiscretePPO(AbstractPPO):
             self.critic = MLPCritic(state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
 
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr)
+        self.initialize_optimizer()
         # write the hyperparameters
 
     def choose_action(self, state: np.ndarray) -> (int, torch.Tensor):
@@ -101,7 +100,7 @@ class DiscretePPO(AbstractPPO):
 
             action_probs = self.actor(state)
             # Compute the mask
-            mask = self.get_mask(state,self.env.action_space.n)
+            mask = self.get_mask(self.env.action_space.n)
 
             # Mask the action probabilities
             action_probs = action_probs * mask
@@ -126,16 +125,13 @@ class DiscretePPO(AbstractPPO):
                     batch_indices)
 
                 states = torch.stack(states)
-                """if self.recurrent:
-                    states = states.unsqueeze(1)"""
-                values = self.critic(states)
                 if self.recurrent:
-                    values = values.squeeze().squeeze()
-                else:
-                    values = values.squeeze()
+                    states = states.unsqueeze(1)
+                values = self.critic(states)
+                values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
-                masks_list = [self.get_mask(state,self.env.action_space.n) for state in states]
+                masks_list = [self.get_mask(self.env.action_space.n) for state in states]
                 masks = torch.stack(masks_list)
 
                 action_probs = action_probs * masks
@@ -161,7 +157,7 @@ class DiscretePPO(AbstractPPO):
 
                 critic_loss = self.critic_loss(values, discounted_rewards)
                 loss = actor_loss + self.value_loss_coef * \
-                    critic_loss - self.entropy_coef * entropy
+                        critic_loss - self.entropy_coef * entropy
                 self.writer.add_scalar(
                     "Value Loss", critic_loss.mean(), self.total_updates_counter)
                 self.writer.add_scalar(
@@ -177,7 +173,7 @@ class DiscretePPO(AbstractPPO):
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
 
-            # Update steps here...
+                # Update steps here...
 
         self.decay_learning_rate()
         self.buffer.clean_buffer()

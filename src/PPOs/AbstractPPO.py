@@ -12,7 +12,7 @@ import gymnasium as gym
 from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
 import os
-
+from typing import Tuple
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
     """Abstract class for PPO.
@@ -183,8 +183,8 @@ class AbstractPPO(metaclass=ABCMeta):
         self.writer = SummaryWriter(tensorboard_path)
         self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
-        print("Initializing DiscretePPO")
-        window_size = 50
+        print("Initialize Discrete PPO ") if self.continuous_action_space == False else print("Initialize Continuous PPO")
+
         if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         elif self.record_video:
@@ -196,7 +196,7 @@ class AbstractPPO(metaclass=ABCMeta):
         print(self.env.observation_space)
         self.state_size = self.env.observation_space.shape[0]
 
-        if self.continuous_action_space == True:
+        if self.continuous_action_space:
             self.action_size = self.env.action_space.shape[0]
         else:
             self.action_size = self.env.action_space.n
@@ -214,7 +214,7 @@ class AbstractPPO(metaclass=ABCMeta):
         for param_group in self.actor_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
 
-    def rollout_episodes(self) -> float:
+    def rollout_episodes(self) -> Tuple[float, float]:
         """Rollout some episodes.
 
         Returns
@@ -225,13 +225,12 @@ class AbstractPPO(metaclass=ABCMeta):
             Average reward of the episodes.
             """
         number_of_step = 0
-        reward_sum = 0
         number_episode = 0
         average_reward = 0
         best_reward = -np.inf
         while number_of_step < self.timestep_per_update:
 
-            state, info = self.env.reset()
+            state, _ = self.env.reset()
             self.current_episode += 1
             ep_reward = 0
             done = False
@@ -240,14 +239,13 @@ class AbstractPPO(metaclass=ABCMeta):
                 action, log_prob = self.choose_action(state)
                 next_state, reward, done, _, _ = self.env.step(action)
                 self.total_timesteps_counter += 1
-                reward_sum += reward
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
                 state = torch.tensor(
                     state, device=self.device, dtype=torch.float32)
-                """if self.recurrent:
-                    state = state.unsqueeze(1)"""
+                if self.recurrent:
+                    state = state.unsqueeze(1)
                 state = state.unsqueeze(0)
                 value = self.critic(state)
                 reward = torch.tensor(
@@ -276,7 +274,7 @@ class AbstractPPO(metaclass=ABCMeta):
         self.buffer.compute_advantages()
 
         return  best_reward, average_reward/number_episode
-    def get_mask(self,state: torch.Tensor,action_space_size : int) -> torch.Tensor:
+    def get_mask(self,action_space_size : int) -> torch.Tensor:
         """Get the mask of the action space.
 
         Parameters
@@ -291,9 +289,7 @@ class AbstractPPO(metaclass=ABCMeta):
         mask : torch.Tensor
             Mask of the action space.
         """
-        # mask is a list of 1 of size state
-        mask = torch.ones(action_space_size, device=self.device)
-        return mask
+        return torch.ones(action_space_size, device=self.device)
 
     @abstractmethod
     def update(self):
@@ -341,6 +337,12 @@ class AbstractPPO(metaclass=ABCMeta):
         self.critic.load_state_dict(torch.load(
             f"{last_subfolder}/critic.pth", map_location=self.device))
 
+    def initialize_optimizer(self):
+        """Initialize the optimizer."""
+        self.actor_optimizer = torch.optim.Adam(
+            self.actor.parameters(), lr=self.lr)
+        self.critic_optimizer = torch.optim.Adam(
+            self.critic.parameters(), lr=self.lr)
     def evaluate(self):
         """Evaluate the model."""
         if self.record_video:
@@ -348,10 +350,9 @@ class AbstractPPO(metaclass=ABCMeta):
             frames = []
         iterations = 0
         print('About to start')
-        tot_reward = 0
         done = False
 
-        state, info = self.env.reset()
+        state, _ = self.env.reset()
         data_set = [state]
         while not done and iterations <= self.timestep_per_episode :
                 action, _ = self.choose_action(state)
@@ -363,7 +364,6 @@ class AbstractPPO(metaclass=ABCMeta):
                     frames.append(frame)
 
                 data_set.append(next_state)
-                tot_reward += reward
                 state = next_state
 
 

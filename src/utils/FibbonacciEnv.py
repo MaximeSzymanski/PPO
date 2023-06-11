@@ -34,11 +34,9 @@ class FibonacciEnvironment(gym.Env):
         self.current_step += 1
 
         # Append the next number in the Fibonacci sequence based on the action type
-        if self.is_discrete:
 
-            next_number = self.sequence[-1] + self.sequence[-2]
-        else:
-            next_number = self.sequence[-1] + self.sequence[-2]
+        next_number = self.sequence[-1] + self.sequence[-2]
+
 
         self.sequence.append(next_number)
 

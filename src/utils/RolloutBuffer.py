@@ -60,15 +60,7 @@ class RolloutBuffer():
 
     def __post_init__(self):
         """Reset the buffer"""
-        self.rewards = []
-        self.values = []
-        self.log_probs = []
-        self.actions = []
-        self.dones = []
-        self.states = []
-        self.advantages = []
-        self.masks = []
-        self.returns = []
+        self.clean_buffer()
 
     def add_step_to_buffer(self, reward: torch.Tensor, value: torch.Tensor, log_prob: torch.Tensor, action: torch.Tensor, done: torch.Tensor, state: list[torch.Tensor], mask: torch.Tensor) -> None:
         """Add a step to the buffer.
