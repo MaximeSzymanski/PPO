@@ -40,7 +40,7 @@ pip install -r requirements.txt
 To run the training:
 
 ```bash
-python training.py --args
+python train.py --args
 ```
 ## Launch the evaluation
 
