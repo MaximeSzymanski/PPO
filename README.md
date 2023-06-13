@@ -20,7 +20,7 @@ It handles MultiActions (like BipedalWalker-v2 environement).
 ### Discrete PPO
 
 Discrete PPO is used for discrete action space (like LunarLander-v2 environement).
-It doesn't handle MultiDiscrete (like LunarLander-v2 environement).
+It doesn't handle MultiDiscrete action space.
 
 
 Both discrete and continuous PPO have a recurrent support, using LSTM.
