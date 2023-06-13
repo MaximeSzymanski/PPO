@@ -28,12 +28,11 @@ class ContinuousPPO(AbstractPPO):
     def __post_init__(self) -> None:
         """Initialize the PPO agent.
         """
+        self.continuous_action_space = True
         super().__post_init__()
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
-
-
-
+        self.action_size = self.env.action_space.shape[0]
 
         self.episode_counter = 0
         if self.recurrent:

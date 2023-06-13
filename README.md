@@ -154,10 +154,17 @@ Here are the results for Fibonacci sequence (reward per episode):
 |--------------------------------------------------------------|
 | <img src=results/curves/fibonacci_continuous.png width=100%> |
 
+### Shapley values
 
+The library support a computation of the Shapley values for the actions and the states using [shap library](https://shap.readthedocs.io/en/latest/index.html).
+
+Here are the results for LunarLander-v2 environement:
+
+| Shapley values                                              |
+|-------------------------------------------------------------|
+| <img src=results/shapvalues/lunarLandershap.png width=100%> |
 ## Future improvements planned
 
 - [ ] Add a CNN Actor and Critic for image-based environements
 - [ ] Add a multi process support to speed up rollout over multiple CPU cores
 - [ ] Add a multi agent support
-- [ ] Add a shapley values computation for continuous paradigm

@@ -13,6 +13,23 @@ from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
 import os
 from typing import Tuple
+from shap import DeepExplainer, summary_plot
+
+
+import torch
+
+class WrappedActor(torch.nn.Module):
+    def __init__(self, actor):
+        super().__init__()
+        self.actor = actor
+
+    def forward(self, *args, **kwargs):
+
+        outputs = self.actor(*args, **kwargs)
+        print("outputs", outputs)
+        # assume outputs is a tuple and we are interested in the first element
+        return outputs[0]  # or whatever index or operation gives you a single Tensor
+
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
     """Abstract class for PPO.
@@ -143,7 +160,7 @@ class AbstractPPO(metaclass=ABCMeta):
     timestep_per_episode: int = dataclasses.field(init=True, default=512)
     epochs: int = dataclasses.field(init=True, default=10)
     minibatch_size: int = dataclasses.field(init=True, default=64)
-    continuous_action_space: bool = dataclasses.field(init=True, default=True)
+    continuous_action_space: bool = dataclasses.field(init=True, default=False)
     render: bool = dataclasses.field(init=True, default=False)
     writer: SummaryWriter = dataclasses.field(init=False,default=None)
     shapley_value: bool = dataclasses.field(init=True, default=False)
@@ -192,14 +209,9 @@ class AbstractPPO(metaclass=ABCMeta):
         else:
             self.env = gym.make(self.env_name)
 
-
-        print(self.env.observation_space)
         self.state_size = self.env.observation_space.shape[0]
 
-        if self.continuous_action_space:
-            self.action_size = self.env.action_space.shape[0]
-        else:
-            self.action_size = self.env.action_space.n
+
 
 
 
@@ -351,42 +363,54 @@ class AbstractPPO(metaclass=ABCMeta):
         iterations = 0
         print('About to start')
         done = False
+        data_set = []
+        for _ in range(10):
+            state, _ = self.env.reset()
+            data_set.append(state)
+            while not done and iterations <= self.timestep_per_episode :
+                    action, _ = self.choose_action(state)
+                    next_state, reward, done, _, _ = self.env.step(action)
+                    iterations += 1
+                    if self.record_video:
+                        frame = self.env.render()
+                        frame = Img.fromarray(frame)
+                        frames.append(frame)
 
-        state, _ = self.env.reset()
-        data_set = [state]
-        while not done and iterations <= self.timestep_per_episode :
-                action, _ = self.choose_action(state)
-                next_state, reward, done, _, _ = self.env.step(action)
-                iterations += 1
-                if self.record_video:
-                    frame = self.env.render()
-                    frame = Img.fromarray(frame)
-                    frames.append(frame)
-
-                data_set.append(next_state)
-                state = next_state
+                    data_set.append(next_state)
+                    state = next_state
 
 
 
-        if self.record_video:
-            frames[0].save(output_file, format='GIF',
-                                     append_images=frames[1:],
-                                       save_all=True,
-                                       duration=300, loop=0)
-        """if self.shapley_value:
+            if self.record_video:
+                frames[0].save(output_file, format='GIF',
+                                         append_images=frames[1:],
+                                           save_all=True,
+                                           duration=300, loop=0)
+        if self.shapley_value:
 
-            data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
-
-            explainer  = shap.KernelExplainer(self.actor, data_set)
-
+            #data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
+            # convert to numpy
+            data_set = np.array(data_set)
+            data_set = torch.from_numpy(data_set).to(self.device)
+            print('Continous action space ', self.continuous_action_space)
+            if self.continuous_action_space:
+                wrapped_actor = WrappedActor(self.actor)
+                wrapped_actor = wrapped_actor.to(self.device)
+            else:
+                wrapped_actor = self.actor
+            explainer = DeepExplainer(wrapped_actor, data_set)
 
             # compute shapley values
             shapeley_values = explainer.shap_values(data_set)
+
             feature_names = self.features_name
+            feature_names = ['x_coord','y_coord','x_vel','y_vel','angle','angular_vel','left_leg','right_leg']
             class_names = self.class_name
+            class_names = ['nothing','left','main','right']
+
             # plot shapley values
 
-            shap.summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)
+            summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)
 
         else:
-            pass"""
+            pass

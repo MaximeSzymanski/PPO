@@ -6,7 +6,6 @@ def evaluate_model():
 
     """
     continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render,save_frequency, shapley_values, class_name, features_name, record_video= get_hyperparameters(eval=True)
-
     PPO = PPOFactory.create_PPO(continuous=continuous, actor_hidden_size=actor_hidden_size,
                                 critic_hidden_size=critic_hidden_size, lr=lr, gamma=gamma,
                                 eps_clip=eps_clip, entropy_coef=entropy_coef, value_loss_coef=value_loss_coef,
@@ -19,7 +18,7 @@ def evaluate_model():
                                 record_video=record_video)
 
     print(PPO)
-
+    print('ACTION SPACE : ', PPO.continuous_action_space)
     PPO.load_model()
     print('Model loaded')
 

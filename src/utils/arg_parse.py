@@ -68,18 +68,20 @@ def get_hyperparameters(eval=False):
     else:
         actor_hidden_size = ast.literal_eval(args.actor_hidden_size)
         critic_hidden_size = ast.literal_eval(args.critic_hidden_size)
-
+    print('=============================================================')
+    print('Hyperparameters:')
+    print('=============================================================')
+    print('continuous action space', args.Continuous_or_Discrete)
     # Continue to add other arguments...
     # Parse arguments
     # check if the environment is continuous or discrete
+    # remove spaces
+    args.Continuous_or_Discrete = args.Continuous_or_Discrete.replace(" ", "")
+    print(args.Continuous_or_Discrete == 'Continuous')
     if args.Continuous_or_Discrete == 'Continuous':
-        if args.shapley_values:
-            raise ValueError(
-                'Shapley values can only be computed in Discrete mode')
         continuous = True
     elif args.Continuous_or_Discrete == 'Discrete':
         continuous = False
-
 
     if not eval:
         if args.record_video:

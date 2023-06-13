@@ -61,9 +61,10 @@ class DiscretePPO(AbstractPPO):
 
     def __post_init__(self) -> None:
         """Perform post initialization checks and setup any additional attributes"""
+        self.continuous_action_space = False
         super().__post_init__()
 
-
+        self.action_size = self.env.action_space.n
 
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
@@ -73,7 +74,7 @@ class DiscretePPO(AbstractPPO):
             self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = MLPCritic(state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
-
+        print('Initializing discrete PPO agent')
         self.initialize_optimizer()
         # write the hyperparameters
 
