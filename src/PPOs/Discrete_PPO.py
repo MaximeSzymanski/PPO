@@ -14,45 +14,6 @@ def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
 
 
-def get_action_mask(number_stocks_in_portfolio, price_of_stock, portfolio_value,device):
-    """
-    Compute the mask for actions the agent can take (buy, sell, hold), based on current state.
-
-    Args:
-        number_stocks_in_portfolio: current number of stocks in portfolio.
-        price_of_stock: current price of the stock.
-        portfolio_value: current value of the portfolio.
-
-    Returns:
-        torch.Tensor: A mask tensor where each element indicates if the action is possible (1) or not (0).
-    """
-
-    # Scale values to match the scale of calculations
-    number_stocks_in_portfolio *= 10
-    portfolio_value *= 10000
-    price_of_stock *= 10
-
-    # Initialize mask
-    action_mask = np.zeros(3)
-
-    # Check for invalid values
-    if np.isinf(portfolio_value) or np.isnan(portfolio_value) or np.isinf(price_of_stock) or np.isnan(price_of_stock):
-        print('Portfolio value or stock price is either infinite or NaN.')
-        return torch.tensor(action_mask, dtype=torch.float32)  # All actions are not possible
-
-    # Always able to hold
-    action_mask[0] = 1
-
-    # Able to buy if there's enough money, considering 10 stocks at a time
-    if portfolio_value >= 10 * price_of_stock:
-        action_mask[1] = 1
-
-    # Able to sell if there are enough stocks in the portfolio
-    if number_stocks_in_portfolio >= 10:
-        action_mask[2] = 1
-
-    return torch.tensor(action_mask, dtype=torch.float32,device=device)
-
 
 @dataclasses.dataclass
 class DiscretePPO(AbstractPPO):

@@ -110,6 +110,13 @@ If you choose only one activation function, it will be applied to all the hidden
 It works for both actor and critic, and for both continuous and discrete PPO (even for the recurrent PPO).
 
 
+## Action Masking
+
+Action masking is used to prevent the agent from choosing an action that is not allowed by the environement.
+To use it, you have to write the get_mask method in AbstractPPO class. For the moment, it is only implemented for the Discrete PPO.
+The mask should have the same shape as the action space of the environement. It should be a boolean array, with True for allowed actions and False for forbidden actions (True are 1 and False are 0).
+Thus, the agent will only choose actions with a True value in the mask.
+
 ## Results
 
 

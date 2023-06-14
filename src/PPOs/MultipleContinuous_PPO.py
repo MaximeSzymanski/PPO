@@ -1,19 +1,13 @@
 import dataclasses
-from typing import List
-
-import gymnasium as gym
 import numpy as np
 import torch
-from PIL import Image
 from tqdm import tqdm
 from src.PPOs.AbstractPPO import AbstractPPO
-from src.utils.RolloutBuffer import RolloutBuffer
 from src.model.Continuous.MLP.MLPActor import MLPActor
 from src.model.Continuous.MLP.MLPCritic import MLPCritic
 from src.model.Continuous.LSTM.LSTMActor import LSTMActor
 from src.model.Continuous.LSTM.LSTMCritic import LSTMCritic
-from src.model.Continuous.CNN.CNNActor import CNNActor
-from src.model.Continuous.CNN.CNNCritic import CNNCritic
+
 
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])

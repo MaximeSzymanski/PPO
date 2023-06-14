@@ -18,7 +18,6 @@ def evaluate_model():
                                 record_video=record_video)
 
     print(PPO)
-    print('ACTION SPACE : ', PPO.continuous_action_space)
     PPO.load_model()
     print('Model loaded')
 

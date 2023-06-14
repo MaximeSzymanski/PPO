@@ -77,7 +77,6 @@ def get_hyperparameters(eval=False):
     # check if the environment is continuous or discrete
     # remove spaces
     args.Continuous_or_Discrete = args.Continuous_or_Discrete.replace(" ", "")
-    print(args.Continuous_or_Discrete == 'Continuous')
     if args.Continuous_or_Discrete == 'Continuous':
         continuous = True
     elif args.Continuous_or_Discrete == 'Discrete':
