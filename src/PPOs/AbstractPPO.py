@@ -324,7 +324,10 @@ class AbstractPPO(metaclass=ABCMeta):
         torch.save(self.critic.state_dict(), f"{path}critic.pth")
         # create a txt file with the hyperparameters and the architecture
         with open(f"{path}hyperparameters.txt", "w") as f:
-            f.write(f"Hyperparameters and architectures: \n{self.__dict__}")
+            f.write(f"Actor dict : \n{self.actor_hidden_size}")
+            f.write(f"Critic dict : \n{self.critic_hidden_size}")
+            f.write(f"Learning rate : \n{self.lr}")
+
 
 
     def load_model(self, path: str = 'saved_weights') -> None:
