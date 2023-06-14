@@ -14,11 +14,9 @@ def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
 
 
-
 @dataclasses.dataclass
 class DiscretePPO(AbstractPPO):
     """Discrete Proximal Policy Optimization (PPO) agent."""
-
 
     def __post_init__(self) -> None:
         """Perform post initialization checks and setup any additional attributes"""
@@ -28,12 +26,16 @@ class DiscretePPO(AbstractPPO):
         self.action_size = self.env.action_space.n
 
         if self.recurrent:
-            self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
-            self.critic = LSTMCritic(state_size=self.state_size, hidden_size= self.critic_hidden_size).to(self.device)
+            self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size,
+                                   hidden_size=self.actor_hidden_size).to(self.device)
+            self.critic = LSTMCritic(
+                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
         else:
-            self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
-            self.critic = MLPCritic(state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
+            self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size,
+                                  hidden_size=self.actor_hidden_size).to(self.device)
+            self.critic = MLPCritic(
+                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
         print('Initializing discrete PPO agent')
         self.initialize_optimizer()
@@ -55,10 +57,10 @@ class DiscretePPO(AbstractPPO):
             The log probability of the action
         """
         with torch.no_grad():
-            state = torch.tensor(state,device=self.device,dtype=torch.float32)
+            state = torch.tensor(
+                state, device=self.device, dtype=torch.float32)
             if self.recurrent:
                 state = state.unsqueeze(0)
-
 
             action_probs = self.actor(state)
             # Compute the mask
@@ -66,7 +68,6 @@ class DiscretePPO(AbstractPPO):
 
             # Mask the action probabilities
             action_probs = action_probs * mask
-
 
             dist = torch.distributions.Categorical(action_probs)
             action = dist.sample()
@@ -93,11 +94,11 @@ class DiscretePPO(AbstractPPO):
                 values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
-                masks_list = [self.get_mask(self.env.action_space.n) for state in states]
+                masks_list = [self.get_mask(
+                    self.env.action_space.n) for state in states]
                 masks = torch.stack(masks_list)
 
                 action_probs = action_probs * masks
-
 
                 dist = torch.distributions.Categorical(action_probs)
                 entropy = dist.entropy()
@@ -119,7 +120,7 @@ class DiscretePPO(AbstractPPO):
 
                 critic_loss = self.critic_loss(values, discounted_rewards)
                 loss = actor_loss + self.value_loss_coef * \
-                        critic_loss - self.entropy_coef * entropy
+                    critic_loss - self.entropy_coef * entropy
                 self.writer.add_scalar(
                     "Value Loss", critic_loss.mean(), self.total_updates_counter)
                 self.writer.add_scalar(

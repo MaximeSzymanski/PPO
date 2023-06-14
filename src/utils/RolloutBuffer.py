@@ -92,7 +92,6 @@ class RolloutBuffer():
         self.masks.append(mask)
 
     def compute_advantages(self) -> None:
-
         """
         Compute the advantages using Generalized Advantage Estimation
         Compute the returns (i.e. discounted rewards) using the values from the critic

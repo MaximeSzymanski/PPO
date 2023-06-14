@@ -19,6 +19,7 @@ class MLPCritic(nn.Module):
         Initialize the weights of the model using orthogonal initialization
 
         """
+
     def __init__(self, state_size: int = 0, hidden_size=None) -> None:
         super(MLPCritic, self).__init__()
 
@@ -26,7 +27,8 @@ class MLPCritic(nn.Module):
         if hidden_size is None:
             hidden_size = {"layer": [16], "activ": "tanh"}
         if 'layer' not in hidden_size or 'activ' not in hidden_size:
-            raise ValueError("Input dictionary must contain 'layer' and 'activ' keys")
+            raise ValueError(
+                "Input dictionary must contain 'layer' and 'activ' keys")
 
         if not isinstance(hidden_size['layer'], list) or not all(isinstance(i, int) for i in hidden_size['layer']):
             raise ValueError("'layer' key must be a list of integers")
@@ -45,7 +47,8 @@ class MLPCritic(nn.Module):
             activ_funcs = activ_funcs * len(hidden_size['layer'])
 
         if len(activ_funcs) != len(layer_sizes) - 2:  # Substract 2 for state and output sizes
-            raise ValueError("The number of activation functions must be equal to the number of layers")
+            raise ValueError(
+                "The number of activation functions must be equal to the number of layers")
 
         for i in range(len(layer_sizes) - 1):
             layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))

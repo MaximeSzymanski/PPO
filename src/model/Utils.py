@@ -23,7 +23,6 @@ class extract_LSTM_features(nn.Module):
             # add a dimension to the tensor
             x = x.unsqueeze(1)
         # keep only the last output of the LSTM
-        x= x[:, -1, :]
-
+        x = x[:, -1, :]
 
         return x

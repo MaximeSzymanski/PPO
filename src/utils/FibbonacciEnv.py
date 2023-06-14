@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
+
 class FibonacciEnvironment(gym.Env):
     def __init__(self, sequence_length, is_discrete=True):
         super(FibonacciEnvironment, self).__init__()
@@ -10,11 +11,14 @@ class FibonacciEnvironment(gym.Env):
         self.is_discrete = is_discrete
 
         if self.is_discrete:
-            self.action_space = spaces.Discrete(10)  # Discrete action space with 10 possible actions
+            # Discrete action space with 10 possible actions
+            self.action_space = spaces.Discrete(10)
         else:
-            self.action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)  # Continuous action space
+            self.action_space = spaces.Box(
+                low=-1, high=1, shape=(1,), dtype=np.float32)  # Continuous action space
 
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(sequence_length,), dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=0, high=np.inf, shape=(sequence_length,), dtype=np.float32)
 
         self.reset()
 
@@ -36,7 +40,6 @@ class FibonacciEnvironment(gym.Env):
         # Append the next number in the Fibonacci sequence based on the action type
 
         next_number = self.sequence[-1] + self.sequence[-2]
-
 
         self.sequence.append(next_number)
 

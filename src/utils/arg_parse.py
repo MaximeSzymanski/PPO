@@ -3,6 +3,7 @@ import ast
 import sys
 from conf import ArgsHelper
 
+
 def generate_parser():
     """Generate the parser for the arguments"""
     parser = argparse.ArgumentParser(description='PPO arguments')
@@ -51,7 +52,7 @@ def generate_parser():
     parser.add_argument('--features_name', type=str, default=[
     ], help='Name of the features (i.e observations) to compute the Shapley values. Default: []', nargs='+')
     parser.add_argument('--record_video', type=bool, default=False,
-                       help='Whether to record a video of the agent. Default: False')
+                        help='Whether to record a video of the agent. Default: False')
 
     return parser
 

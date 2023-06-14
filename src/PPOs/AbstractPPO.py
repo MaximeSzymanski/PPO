@@ -18,6 +18,7 @@ from shap import DeepExplainer, summary_plot
 
 import torch
 
+
 class WrappedActor(torch.nn.Module):
     def __init__(self, actor):
         super().__init__()
@@ -28,7 +29,9 @@ class WrappedActor(torch.nn.Module):
         outputs = self.actor(*args, **kwargs)
         print("outputs", outputs)
         # assume outputs is a tuple and we are interested in the first element
-        return outputs[0]  # or whatever index or operation gives you a single Tensor
+        # or whatever index or operation gives you a single Tensor
+        return outputs[0]
+
 
 @dataclasses.dataclass
 class AbstractPPO(metaclass=ABCMeta):
@@ -154,23 +157,21 @@ class AbstractPPO(metaclass=ABCMeta):
     entropy_coef: float = dataclasses.field(init=True, default=0.01)
     eps_clip: float = dataclasses.field(init=True, default=0.2)
     lr: float = dataclasses.field(init=True, default=3e-4)
-    actor_hidden_size: dict = dataclasses.field(init=True,default_factory=lambda: {"layer": [64], "activ": "tanh"})
-    critic_hidden_size: dict = dataclasses.field(init=True,default_factory=lambda: {"layer": [64], "activ": "tanh"})
+    actor_hidden_size: dict = dataclasses.field(
+        init=True, default_factory=lambda: {"layer": [64], "activ": "tanh"})
+    critic_hidden_size: dict = dataclasses.field(
+        init=True, default_factory=lambda: {"layer": [64], "activ": "tanh"})
     timestep_per_update: int = dataclasses.field(init=True, default=2048)
     timestep_per_episode: int = dataclasses.field(init=True, default=512)
     epochs: int = dataclasses.field(init=True, default=10)
     minibatch_size: int = dataclasses.field(init=True, default=64)
     continuous_action_space: bool = dataclasses.field(init=True, default=False)
     render: bool = dataclasses.field(init=True, default=False)
-    writer: SummaryWriter = dataclasses.field(init=False,default=None)
+    writer: SummaryWriter = dataclasses.field(init=False, default=None)
     shapley_value: bool = dataclasses.field(init=True, default=False)
     class_name: list[str] = dataclasses.field(init=True, default_factory=[])
     features_name: list[str] = dataclasses.field(init=True, default_factory=[])
     record_video: bool = dataclasses.field(init=True, default=False)
-
-
-
-
 
     @abstractmethod
     def choose_action(self, state):
@@ -198,9 +199,11 @@ class AbstractPPO(metaclass=ABCMeta):
         tensorboard_path = f'{tensorboard_path}/run_{run_number}'
 
         self.writer = SummaryWriter(tensorboard_path)
-        self.buffer = RolloutBuffer(minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
+        self.buffer = RolloutBuffer(
+            minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
-        print("Initialize Discrete PPO ") if self.continuous_action_space == False else print("Initialize Continuous PPO")
+        print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
+            "Initialize Continuous PPO")
 
         if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
@@ -210,11 +213,6 @@ class AbstractPPO(metaclass=ABCMeta):
             self.env = gym.make(self.env_name)
 
         self.state_size = self.env.observation_space.shape[0]
-
-
-
-
-
 
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
@@ -285,8 +283,9 @@ class AbstractPPO(metaclass=ABCMeta):
                     break
         self.buffer.compute_advantages()
 
-        return  best_reward, average_reward/number_episode
-    def get_mask(self,action_space_size : int) -> torch.Tensor:
+        return best_reward, average_reward/number_episode
+
+    def get_mask(self, action_space_size: int) -> torch.Tensor:
         """Get the mask of the action space.
 
         Parameters
@@ -328,8 +327,6 @@ class AbstractPPO(metaclass=ABCMeta):
             f.write(f"Critic dict : \n{self.critic_hidden_size}")
             f.write(f"Learning rate : \n{self.lr}")
 
-
-
     def load_model(self, path: str = 'saved_weights') -> None:
         """Load the model.
 
@@ -348,7 +345,7 @@ class AbstractPPO(metaclass=ABCMeta):
         )
         # get the name of the environment
         self.actor.load_state_dict(torch.load(
-          f"{last_subfolder}/actor.pth", map_location=self.device))
+            f"{last_subfolder}/actor.pth", map_location=self.device))
         self.critic.load_state_dict(torch.load(
             f"{last_subfolder}/critic.pth", map_location=self.device))
 
@@ -358,6 +355,7 @@ class AbstractPPO(metaclass=ABCMeta):
             self.actor.parameters(), lr=self.lr)
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=self.lr)
+
     def evaluate(self):
         """Evaluate the model."""
         if self.record_video:
@@ -370,28 +368,26 @@ class AbstractPPO(metaclass=ABCMeta):
         for _ in range(10):
             state, _ = self.env.reset()
             data_set.append(state)
-            while not done and iterations <= self.timestep_per_episode :
-                    action, _ = self.choose_action(state)
-                    next_state, reward, done, _, _ = self.env.step(action)
-                    iterations += 1
-                    if self.record_video:
-                        frame = self.env.render()
-                        frame = Img.fromarray(frame)
-                        frames.append(frame)
+            while not done and iterations <= self.timestep_per_episode:
+                action, _ = self.choose_action(state)
+                next_state, reward, done, _, _ = self.env.step(action)
+                iterations += 1
+                if self.record_video:
+                    frame = self.env.render()
+                    frame = Img.fromarray(frame)
+                    frames.append(frame)
 
-                    data_set.append(next_state)
-                    state = next_state
-
-
+                data_set.append(next_state)
+                state = next_state
 
             if self.record_video:
                 frames[0].save(output_file, format='GIF',
-                                         append_images=frames[1:],
-                                           save_all=True,
-                                           duration=300, loop=0)
+                               append_images=frames[1:],
+                               save_all=True,
+                               duration=300, loop=0)
         if self.shapley_value:
 
-            #data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
+            # data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
             # convert to numpy
             data_set = np.array(data_set)
             data_set = torch.from_numpy(data_set).to(self.device)
@@ -407,13 +403,15 @@ class AbstractPPO(metaclass=ABCMeta):
             shapeley_values = explainer.shap_values(data_set)
 
             feature_names = self.features_name
-            feature_names = ['x_coord','y_coord','x_vel','y_vel','angle','angular_vel','left_leg','right_leg']
+            feature_names = ['x_coord', 'y_coord', 'x_vel', 'y_vel',
+                             'angle', 'angular_vel', 'left_leg', 'right_leg']
             class_names = self.class_name
-            class_names = ['nothing','left','main','right']
+            class_names = ['nothing', 'left', 'main', 'right']
 
             # plot shapley values
 
-            summary_plot(shapeley_values, data_set, feature_names=feature_names,class_names= class_names,show=True)
+            summary_plot(shapeley_values, data_set, feature_names=feature_names,
+                         class_names=class_names, show=True)
 
         else:
             pass

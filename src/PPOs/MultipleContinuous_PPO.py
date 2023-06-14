@@ -32,12 +32,12 @@ class ContinuousPPO(AbstractPPO):
         if self.recurrent:
 
             self.actor = LSTMActor(state_size=self.state_size,
-                              action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
+                                   action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = LSTMCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
         else:
             self.actor = MLPActor(state_size=self.state_size,
-                             action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
+                                  action_size=self.action_size, hidden_size=self.actor_hidden_size).to(self.device)
 
             self.critic = MLPCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
@@ -59,7 +59,6 @@ class ContinuousPPO(AbstractPPO):
         log_prob : torch.Tensor
             The log probability of the action.
         """
-
 
         with torch.no_grad():
             state = torch.tensor(
@@ -204,7 +203,7 @@ class ContinuousPPO(AbstractPPO):
 
                 critic_loss = self.critic_loss(values, discounted_rewards)
                 loss = actor_loss + self.value_loss_coef * \
-                       critic_loss - self.entropy_coef * entropy
+                    critic_loss - self.entropy_coef * entropy
                 self.writer.add_scalar(
                     "Value Loss", critic_loss.mean(), self.total_updates_counter)
                 self.writer.add_scalar(
@@ -224,5 +223,3 @@ class ContinuousPPO(AbstractPPO):
 
         self.decay_learning_rate()
         self.buffer.clean_buffer()
-
-
