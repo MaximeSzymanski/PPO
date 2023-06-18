@@ -25,12 +25,17 @@ class LSTMActor(nn.Module):
     """
 
     def __init__(self, lstm_hidden_size: int = 16, state_size: int = 0, action_size: int = 1,
-                 hidden_size=None) -> None:
+                 hidden_size: dict=None) -> None:
         super(LSTMActor, self).__init__()
+        # the first value of the action_size dict is the lstm_hidden_size
+
 
         # Validation
         if hidden_size is None:
             hidden_size = {"layer": [lstm_hidden_size], "activ": "tanh"}
+        else :
+            lstm_hidden_size = hidden_size['layer'][0]
+
         if 'layer' not in hidden_size or 'activ' not in hidden_size:
             raise ValueError(
                 "Input dictionary must contain 'layer' and 'activ' keys")
@@ -45,7 +50,7 @@ class LSTMActor(nn.Module):
                 "'activ' key must be a string of activation function names ('relu', 'tanh') separated by comma")
 
         layers = []
-        layer_sizes = [128, *hidden_size['layer'], action_size]
+        layer_sizes = [lstm_hidden_size, *hidden_size['layer'], action_size]
         activ_funcs = hidden_size['activ'].split(',')
 
         if len(activ_funcs) == 1:

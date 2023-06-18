@@ -4,9 +4,7 @@ import dataclasses
 from abc import ABCMeta, abstractmethod
 
 from PIL import Image as Img
-from PIL import ImageTk
 from torch.utils.tensorboard import SummaryWriter
-import torch
 import torch.nn as nn
 import gymnasium as gym
 from src.utils.RolloutBuffer import RolloutBuffer
@@ -14,7 +12,7 @@ import numpy as np
 import os
 from typing import Tuple
 from shap import DeepExplainer, summary_plot
-
+from src.gym_env.StocksEnv import StockEnv
 
 import torch
 
@@ -205,14 +203,17 @@ class AbstractPPO(metaclass=ABCMeta):
         print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
             "Initialize Continuous PPO")
 
-        if self.render:
+        """if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         elif self.record_video:
             self.env = gym.make(self.env_name, render_mode='rgb_array')
         else:
-            self.env = gym.make(self.env_name)
+            self.env = gym.make(self.env_name)"""
+        self.env = StockEnv(window_size=50)
 
-        self.state_size = self.env.observation_space.shape[0]
+
+        self.state_size = 4
+        self.action_size = 3
 
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
@@ -254,9 +255,9 @@ class AbstractPPO(metaclass=ABCMeta):
                     "Reward total timestep", reward, self.total_timesteps_counter)
                 state = torch.tensor(
                     state, device=self.device, dtype=torch.float32)
-                if self.recurrent:
-                    state = state.unsqueeze(1)
-                state = state.unsqueeze(0)
+                """if self.recurrent:
+                    state = state.unsqueeze(1)"""
+
                 value = self.critic(state)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)

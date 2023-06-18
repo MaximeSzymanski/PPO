@@ -13,7 +13,6 @@ from src.PPOs.AbstractPPO import AbstractPPO
 def get_model_flattened_params(model):
     return torch.cat([param.data.view(-1) for param in model.parameters()])
 
-
 @dataclasses.dataclass
 class DiscretePPO(AbstractPPO):
     """Discrete Proximal Policy Optimization (PPO) agent."""
@@ -41,6 +40,51 @@ class DiscretePPO(AbstractPPO):
         self.initialize_optimizer()
         # write the hyperparameters
 
+    def get_mask(self, action_size: int,state: torch.tensor) -> torch.Tensor:
+        """Get a mask for the action probabilities
+
+        Arguments
+        ---------
+        action_size: int
+            The number of actions
+
+        Returns
+        -------
+        mask: torch.Tensor
+            The mask for the action probabilities
+        """
+        # Scale values to match the scale of calculations
+        if len(state.shape) == 2:
+            state = state.unsqueeze(0)
+        number_stocks_in_portfolio = state[-1][-1][-1].item()
+        price_of_stock = state[-1][-1][1].item()
+        portfolio_value = state[-1][-1][-2].item()
+
+        number_stocks_in_portfolio *= 10
+        portfolio_value *= 10000
+        price_of_stock *= 10
+
+        # Initialize mask
+        action_mask = np.zeros(3)
+
+        # Check for invalid values
+        if np.isinf(portfolio_value) or np.isnan(portfolio_value) or np.isinf(price_of_stock) or np.isnan(
+                price_of_stock):
+            print('Portfolio value or stock price is either infinite or NaN.')
+            return torch.tensor(action_mask, dtype=torch.float32,device=self.device)  # All actions are not possible
+
+        # Always able to hold
+        action_mask[0] = 1
+
+        # Able to buy if there's enough money, considering 10 stocks at a time
+        if portfolio_value >= 10 * price_of_stock:
+            action_mask[1] = 1
+
+        # Able to sell if there are enough stocks in the portfolio
+        if number_stocks_in_portfolio >= 10:
+            action_mask[2] = 1
+
+        return torch.tensor(action_mask, dtype=torch.float32, device=self.device)
     def choose_action(self, state: np.ndarray) -> (int, torch.Tensor):
         """Choose an action based on the current state
 
@@ -64,7 +108,7 @@ class DiscretePPO(AbstractPPO):
 
             action_probs = self.actor(state)
             # Compute the mask
-            mask = self.get_mask(self.env.action_space.n)
+            mask = self.get_mask(self.env.action_space.n,state)
 
             # Mask the action probabilities
             action_probs = action_probs * mask
@@ -88,14 +132,13 @@ class DiscretePPO(AbstractPPO):
                     batch_indices)
 
                 states = torch.stack(states)
-                if self.recurrent:
-                    states = states.unsqueeze(1)
+
                 values = self.critic(states)
                 values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
                 action_probs = self.actor(states)
                 # Compute the mask
                 masks_list = [self.get_mask(
-                    self.env.action_space.n) for state in states]
+                    self.env.action_space.n,state) for state in states]
                 masks = torch.stack(masks_list)
 
                 action_probs = action_probs * masks

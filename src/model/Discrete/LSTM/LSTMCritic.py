@@ -28,6 +28,8 @@ class LSTMCritic(nn.Module):
         # Validation
         if hidden_size is None:
             hidden_size = {"layer": [lstm_hidden_size], "activ": "tanh"}
+        else:
+            lstm_hidden_size = hidden_size['layer'][0]
         if 'layer' not in hidden_size or 'activ' not in hidden_size:
             raise ValueError(
                 "Input dictionary must contain 'layer' and 'activ' keys")
