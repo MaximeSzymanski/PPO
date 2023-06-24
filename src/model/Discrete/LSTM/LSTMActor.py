@@ -25,15 +25,14 @@ class LSTMActor(nn.Module):
     """
 
     def __init__(self, lstm_hidden_size: int = 16, state_size: int = 0, action_size: int = 1,
-                 hidden_size: dict=None) -> None:
+                 hidden_size: dict = None) -> None:
         super(LSTMActor, self).__init__()
         # the first value of the action_size dict is the lstm_hidden_size
-
 
         # Validation
         if hidden_size is None:
             hidden_size = {"layer": [lstm_hidden_size], "activ": "tanh"}
-        else :
+        else:
             lstm_hidden_size = hidden_size['layer'][0]
 
         if 'layer' not in hidden_size or 'activ' not in hidden_size:

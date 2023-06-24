@@ -1,11 +1,12 @@
-import gymnasium as gym
 import numpy as np
 import yfinance as yf
 import pandas as pd
 import os
+import pickle
 from dataclasses import dataclass
 from sklearn.preprocessing import MinMaxScaler
 from typing import List
+import gymnasium as gym
 from gymnasium import spaces
 import matplotlib.pyplot as plt
 import random
@@ -16,6 +17,7 @@ import torch
 
 # Define your trading strategy
 def trading_strategy(data, portfolio_value):
+
     # Define your strategy logic here
     # Example: Buy if the current price is higher than the previous price, sell otherwise
     actions = []
@@ -35,58 +37,47 @@ def trading_strategy(data, portfolio_value):
     return actions
 
 
-
-
 class StockEnv(gym.Env):
     """This class represents the environment of the stock market where the agent will learn to trade
 
 
         """
 
-    def __init__(self, window_size=90, company_ticker=None):
-        tickers = ['AIT', 'CSR', 'FTDR', 'JRVR', 'KAMN', 'MGPI', 'NKTR', 'OIS', 'PAHC', 'PRLB', 'TILE', 'TWNK', 'VIAV',
-                   'WWW']
-
-        number_train_tickers = 0.70 * len(tickers)
-        number_test_tickers = len(tickers) - number_train_tickers
-        print(
-            f'Number of train tickers : {number_train_tickers} and number of test tickers : {number_test_tickers}')
-        train_tickers = tickers[:int(number_train_tickers) + 1]
-        # get the last two values of tje tickers array
-
-        test_tickers = tickers[-int(number_test_tickers):]
-
-        print(f'Train tickers : {train_tickers}')
-        print(f'Test tickers : {test_tickers}')
-
+    def get_stocks_data_from_API(self):
+        tickers = ['AIT', 'CSR', 'FTDR', 'JRVR', 'KAMN', 'MGPI', 'NKTR', 'OIS', 'PAHC', 'PRLB', 'TILE', 'TWNK',
+                   'VIAV', 'WWW']
         period = '5y'
-        for ticker in train_tickers:
+        for ticker in tickers:
             df_temp = yf.Ticker(ticker).history(period=period)
             df_temp.drop(['Dividends', 'Stock Splits', 'Volume'],
                          axis=1, inplace=True)
-            # create a folder for each stock
-            df_temp.to_csv(f'./data_train/{ticker}.csv')
-            print(f'{ticker} done')
-        for ticker in test_tickers:
-            df_temp = yf.Ticker(ticker).history(period=period)
-            df_temp.drop(['Dividends', 'Stock Splits', 'Volume'],
-                         axis=1, inplace=True)
-            # create a folder for each stock
-            df_temp.to_csv(f'./data_test/{ticker}.csv')
-            print(f'{ticker} done')
 
+            # convert the index to datetime
+            df_temp.index = pd.to_datetime(df_temp.index)
+
+            # split the data into training and testing
+            cutoff_date = df_temp.index.max() - pd.DateOffset(
+                years=1)  # date one year before the latest date in the data
+            train_df = df_temp[df_temp.index <= cutoff_date]
+            test_df = df_temp[df_temp.index > cutoff_date]
+
+            # save the data
+            train_df.to_csv(f'./data_train/{ticker}.csv')
+            test_df.to_csv(f'./data_test/{ticker}.csv')
+
+            print(f'{ticker} done')
         train_stocks = []
         test_stocks = []
-        for ticker in train_tickers:
+        for ticker in tickers:
             # read the csv
-            file_name = 'data_train/' + ticker + '.csv'
-            df = pd.read_csv(file_name)
-            train_stocks.append(Stock(ticker, df))
-        for ticker in test_tickers:
-            # read the csv
-            file_name = 'data_test/' + ticker + '.csv'
-            df = pd.read_csv(file_name)
-            test_stocks.append(Stock(ticker, df))
+            file_name_train = 'data_train/' + ticker + '.csv'
+            file_name_test = 'data_test/' + ticker + '.csv'
+            df_train = pd.read_csv(
+                file_name_train, index_col=0, parse_dates=True)
+            df_test = pd.read_csv(
+                file_name_test, index_col=0, parse_dates=True)
+            train_stocks.append(Stock(ticker, df_train))
+            test_stocks.append(Stock(ticker, df_test))
         [stock.values.dropna() for stock in train_stocks]
         [stock.values.dropna() for stock in test_stocks]
         series_lengths_train = {len(series) for series in [
@@ -95,42 +86,67 @@ class StockEnv(gym.Env):
             stock.values for stock in test_stocks]}
         print(f'Train series lengths : {series_lengths_train}')
         print(f'Test series lengths : {series_lengths_test}')
+        # ... rest of your code remains same ...
+        print(f'Train series lengths : {series_lengths_train}')
+        print(f'Test series lengths : {series_lengths_test}')
         for stock in train_stocks:
-            for index in range(1, len(stock.values)):
-                stock.values.loc[index, 'DR'] = stock.values.loc[index, 'Close'] / stock.values.loc[index - 1, 'Close']
+            stock.values['DR'] = stock.values['Close'] / \
+                stock.values['Close'].shift(1)
+            # replace NaN values with 1
+            stock.values['DR'].fillna(1, inplace=True)
         for stock in test_stocks:
-            for index in range(1, len(stock.values)):
-                stock.values.loc[index, 'DR'] = stock.values.loc[index, 'Close'] / stock.values.loc[index - 1, 'Close']
+            stock.values['DR'] = stock.values['Close'] / \
+                stock.values['Close'].shift(1)
+            # replace NaN values with 1
+            stock.values['DR'].fillna(1, inplace=True)
         # normalize all datas between 0 and 100. Normalize independently all the stocks,
         scaler = MinMaxScaler(feature_range=(0, 10))
-
         # Train data normalization
-        train_data_norm = pd.concat([stock.values.drop(['Date'], axis=1) for stock in train_stocks])
+        train_data_norm = pd.concat([stock.values for stock in train_stocks])
         train_data_norm = scaler.fit_transform(train_data_norm)
         train_data_norm_index = 0
-
         for stock in train_stocks:
             num_rows = len(stock.values)
             stock_values = train_data_norm[train_data_norm_index: train_data_norm_index + num_rows]
-            df = pd.DataFrame(stock_values, columns=stock.values.columns[1:])
-            stock.values.iloc[:, 1:] = df  # Update values for all columns except 'Date'
+            df = pd.DataFrame(stock_values, columns=stock.values.columns[:])
+            # Update values for all columns except 'Date'
+            stock.values.iloc[:, :] = df
             train_data_norm_index += num_rows
-
         # Test data normalization
-        test_data_norm = pd.concat([stock.values.drop(['Date'], axis=1) for stock in test_stocks])
+        test_data_norm = pd.concat([stock.values for stock in test_stocks])
         test_data_norm = scaler.transform(test_data_norm)
         test_data_norm_index = 0
-
         for stock in test_stocks:
             num_rows = len(stock.values)
             stock_values = test_data_norm[test_data_norm_index: test_data_norm_index + num_rows]
-            df = pd.DataFrame(stock_values, columns=stock.values.columns[1:])
-            stock.values.iloc[:, 1:] = df  # Update values for all columns except 'Date'
+            df = pd.DataFrame(stock_values, columns=stock.values.columns[:])
+            # Update values for all columns except 'Date'
+            stock.values.iloc[:, :] = df
             test_data_norm_index += num_rows
-
         # Split the data into train and test
         self.test_stocks: List[Stock] = test_stocks
         self.train_stocks: List[Stock] = train_stocks
+        # Save test_stocks and train_stocks in a pickle file
+        # create pickle file if it doesn't exist
+        if not os.path.exists('pickle'):
+            os.makedirs('pickle')
+        with open('pickle/test_stocks.pkl', 'wb') as f:
+            pickle.dump(self.test_stocks, f)
+        with open('pickle/train_stocks.pkl', 'wb') as f:
+            pickle.dump(self.train_stocks, f)
+
+    def __init__(self, window_size=90, company_ticker=None):
+        # check if the data is already downloaded, i.e if the pickle files already exist
+        if os.path.exists("pickle/test_stocks.pkl") and os.path.exists("pickle/train_stocks.pkl"):
+            # load the data from the pickle files
+            with open('pickle/test_stocks.pkl', 'rb') as f:
+                self.test_stocks = pickle.load(f)
+            with open('pickle/train_stocks.pkl', 'rb') as f:
+                self.train_stocks = pickle.load(f)
+        else:
+            # download the data
+            self.get_stocks_data_from_API()
+
         # days is a list of all the days of the window size
         self.days = []
         self.company_ticker = company_ticker
@@ -199,7 +215,8 @@ class StockEnv(gym.Env):
         if isinstance(stocks_owned, torch.Tensor):
             actions = stocks_owned.item()
 
-        self.days.append([daily_return, close / 10, portfolio / 10000, stocks_owned / 10])
+        self.days.append(
+            [daily_return, close / 10, portfolio / 10000, stocks_owned / 10])
 
     def _get_obs(self):
         # get the current state of the stock, and concatenate it with the portfolio and the actions
@@ -222,12 +239,13 @@ class StockEnv(gym.Env):
         self.days = []
         # Define the walk-forward parameters
         # get a random stock from the train_stocks
+        if self.company_ticker is not None:
+            self.stock = self.train_stocks[self.company_ticker]
+        else:
+            self.stock = self.train_stocks[0]
 
-
-        self.stock = self.train_stocks[self.current_stock_index]
         self.current_stock_index += 1
-        if self.current_stock_index >= len(self.train_stocks):
-            self.current_stock_index = 0
+
 
         # self.starting_point = random.randint(0, len(self.stock.values) - self.window_size - 1)
         self.starting_point = 0
@@ -259,8 +277,8 @@ class StockEnv(gym.Env):
         # choose a random starting point in the stock, but not too close to the end (window_size)
         # self.starting_point = random.randint(0, len(self.stock.values) - self.window_size - 1)
         self.diff_pourcentage = (
-                (self.stock.values['Close'].iloc[-1] - self.stock.values['Close'].iloc[0]) /
-                self.stock.values['Close'].iloc[0])
+            (self.stock.values['Close'].iloc[-1] - self.stock.values['Close'].iloc[0]) /
+            self.stock.values['Close'].iloc[0])
         self.min_close = self.stock.values['Close'].min()
         self.max_close = self.stock.values['Close'].max()
         """self.max_portfolio = (
@@ -376,7 +394,6 @@ class StockEnv(gym.Env):
         self.current_price = self.stock.values['Close'][self.current_step]
         portfolio_before = self.portfolio + self.actions * self.current_price
 
-
         self.next_day_price = self.stock.values['Close'][self.current_step + 1]
         number_of_stocks = action
         is_finish, hold_reward = self._evaluate_action(number_of_stocks)
@@ -441,6 +458,7 @@ class StockEnv(gym.Env):
 
     def close(self):
         pass
+
 
 @dataclass
 class Stock:

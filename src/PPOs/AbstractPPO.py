@@ -1,20 +1,38 @@
 
-
+from src.utils.Writer import StaticWriter
 import dataclasses
 from abc import ABCMeta, abstractmethod
-
+from multiprocessing import Process, Manager, Value
 from PIL import Image as Img
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 import gymnasium as gym
+from multiprocessing import Event
 from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
 import os
 from typing import Tuple
-from shap import DeepExplainer, summary_plot
+# from shap import DeepExplainer, summary_plot
 from src.gym_env.StocksEnv import StockEnv
-
+from src.utils.Worker import Worker
 import torch
+import src.utils.Worker as worker_static
+
+
+
+def make_env(env_id, rank, seed=0):
+    def _init():
+        # Register the environment in the current subprocess
+        gym.envs.register(
+            id="Stocks-v0",
+            entry_point="gymnasium.envs.classic_control:StockEnv",
+            max_episode_steps=1259,
+            kwargs={"window_size": 50},
+        )
+        env = gym.make(env_id)
+        return env
+
+    return _init
 
 
 class WrappedActor(torch.nn.Module):
@@ -62,7 +80,7 @@ class AbstractPPO(metaclass=ABCMeta):
     env_name : str
         Environment name.
     env_worker : int
-        Number of environment workers.
+        Number of environment workers_list.
     decay_rate : float
         Decay rate of the learning rate in percentage per update.
     current_episode : int
@@ -170,6 +188,7 @@ class AbstractPPO(metaclass=ABCMeta):
     class_name: list[str] = dataclasses.field(init=True, default_factory=[])
     features_name: list[str] = dataclasses.field(init=True, default_factory=[])
     record_video: bool = dataclasses.field(init=True, default=False)
+    total_episode_written: int = dataclasses.field(init=False, default=0)
 
     @abstractmethod
     def choose_action(self, state):
@@ -183,6 +202,7 @@ class AbstractPPO(metaclass=ABCMeta):
 
     def __post_init__(self):
         """Initialize tensorboard writer."""
+        StaticWriter.initalize_writer(self.env_name)
 
         tensorboard_path = f'tensorboard_logs/{self.env_name}'
         # create folder if not exists
@@ -196,7 +216,7 @@ class AbstractPPO(metaclass=ABCMeta):
                 run_number += 1
         tensorboard_path = f'{tensorboard_path}/run_{run_number}'
 
-        self.writer = SummaryWriter(tensorboard_path)
+        # self.writer = SummaryWriter(tensorboard_path)
         self.buffer = RolloutBuffer(
             minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
 
@@ -209,8 +229,16 @@ class AbstractPPO(metaclass=ABCMeta):
             self.env = gym.make(self.env_name, render_mode='rgb_array')
         else:
             self.env = gym.make(self.env_name)"""
-        self.env = StockEnv(window_size=50)
 
+        # count the number of file in data_test folder
+        num_actions = 0
+        for file in os.listdir("data_test"):
+            if file.endswith(".csv"):
+                num_actions += 1
+        self.env = StockEnv(window_size=50,company_ticker=0)
+        self.env_pool = [StockEnv(window_size=50,company_ticker=0) for index in range(num_actions)]
+
+        # Create the vectorized environment
 
         self.state_size = 4
         self.action_size = 3
@@ -218,8 +246,8 @@ class AbstractPPO(metaclass=ABCMeta):
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
         # decay critic learning rate
-        self.writer.add_scalar(
-            "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)
+        # self.writer.add_scalar(
+        # "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)
         for param_group in self.critic_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
         for param_group in self.actor_optimizer.param_groups:
@@ -235,56 +263,49 @@ class AbstractPPO(metaclass=ABCMeta):
         average_reward : float
             Average reward of the episodes.
             """
-        number_of_step = 0
-        number_episode = 0
-        average_reward = 0
-        best_reward = -np.inf
-        while number_of_step < self.timestep_per_update:
+        workers = worker_static.WorkerGet.get_worker_manager(self)
+        print('number of worker', len(workers.workers_list))
+        for worker in workers.workers_list:
+            worker.start()
+        while True:
+            #print(f"length of the buffer {workers.shared_buffer.qsize()}, timestep_per_update {self.timestep_per_update}")
+            if workers.shared_buffer.qsize() >= self.timestep_per_update:
+                workers.stop_event.set()
+                rollout_data = [workers.shared_buffer.get()
+                                for _ in range(workers.shared_buffer.qsize())]
+                for rollout in rollout_data:
+                    reward, value, log_prob, action, done, state, mask = rollout
 
-            state, _ = self.env.reset()
-            self.current_episode += 1
-            ep_reward = 0
-            done = False
-            for _ in range(self.timestep_per_episode):
+                    self.buffer.add_step_to_buffer(
+                        reward, value, log_prob, action, done, state, mask)
+                    workers.number_of_step += 1
+                break
+        for worker in workers.workers_list:
+            print(f"Terminate process {worker.name}")
 
-                action, log_prob = self.choose_action(state)
-                next_state, reward, done, _, _ = self.env.step(action)
-                self.total_timesteps_counter += 1
-                ep_reward += reward
-                self.writer.add_scalar(
-                    "Reward total timestep", reward, self.total_timesteps_counter)
-                state = torch.tensor(
-                    state, device=self.device, dtype=torch.float32)
-                """if self.recurrent:
-                    state = state.unsqueeze(1)"""
+            worker.terminate()
+            worker.join()
 
-                value = self.critic(state)
-                reward = torch.tensor(
-                    [reward], device=self.device, dtype=torch.float32)
-                mask = torch.tensor(
-                    [not done], device=self.device, dtype=torch.float32)
-                done = torch.tensor(
-                    [done], device=self.device, dtype=torch.float32)
-
-                action = torch.tensor(
-                    [action], device=self.device, dtype=torch.float32)
-                self.buffer.add_step_to_buffer(
-                    reward, value, log_prob, action, done, state, mask)
-                state = next_state
-                number_of_step += 1
-                if done or number_of_step == self.timestep_per_update:
-                    number_episode += 1
-                    average_reward += ep_reward
-                    self.writer.add_scalar(
-                        "Reward", ep_reward, self.current_episode)
-                    if ep_reward > best_reward:
-                        best_reward = ep_reward
-                        self.writer.add_scalar(
-                            "Best reward", best_reward, self.current_episode)
-                    break
+        self.total_updates_counter += 1
+        for value in workers.episode_reward_list:
+            #print("Average Reward", value)
+            StaticWriter.writer.add_scalar("Average Reward", value,
+                                           self.total_episode_written)
+            self.total_episode_written += 1
+        #print("buffer size ")
         self.buffer.compute_advantages()
+        number_episode = workers.number_episode.value
+        episode_reward = workers.episode_reward.value
 
-        return best_reward, average_reward/number_episode
+        best_reward = max(workers.episode_reward_list)
+        average_reward = sum(workers.episode_reward_list)/len(workers.episode_reward_list)
+        workers.episode_reward_list = []
+
+
+        self.current_episode += number_episode
+        #print('average reward', episode_reward/number_episode)
+        #print('number of episode', self.current_episode)
+        return best_reward, average_reward
 
     def get_mask(self, action_space_size: int) -> torch.Tensor:
         """Get the mask of the action space.
@@ -386,7 +407,7 @@ class AbstractPPO(metaclass=ABCMeta):
                                append_images=frames[1:],
                                save_all=True,
                                duration=300, loop=0)
-        if self.shapley_value:
+        """if self.shapley_value:
 
             # data_set = torch.tensor(data_set, device=self.device, dtype=torch.float32)
             # convert to numpy
@@ -415,4 +436,4 @@ class AbstractPPO(metaclass=ABCMeta):
                          class_names=class_names, show=True)
 
         else:
-            pass
+            pass"""
