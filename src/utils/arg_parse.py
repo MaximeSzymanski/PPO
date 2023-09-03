@@ -39,7 +39,7 @@ def generate_parser():
                         help='Name of the environment. Default: BipedalWalker-v3')
     parser.add_argument('--recurrent', type=bool, default=False,
                         help='Whether to use a recurrent policy. Default: False')
-    parser.add_argument('--decay_rate', type=int, default=0.99,
+    parser.add_argument('--decay_rate', type=float, default=0.99,
                         help='Decay rate for the Adam optimizer learning rate. Default: 0.99')
     parser.add_argument('--render', type=bool, default=False,
                         help='Whether to render the environment. Default: False')

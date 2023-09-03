@@ -267,6 +267,7 @@ class AbstractPPO(metaclass=ABCMeta):
 
                 action = torch.tensor(
                     [action], device=self.device, dtype=torch.float32)
+                print(f"state {state} action {action} reward {reward} done {done}")
                 self.buffer.add_step_to_buffer(
                     reward, value, log_prob, action, done, state, mask)
                 state = next_state

@@ -24,7 +24,6 @@ class DiscretePPO(AbstractPPO):
         super().__post_init__()
 
         self.action_size = self.env.action_space.n
-
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size,
                                    hidden_size=self.actor_hidden_size).to(self.device)

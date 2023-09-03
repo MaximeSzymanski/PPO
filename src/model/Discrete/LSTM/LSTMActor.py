@@ -42,6 +42,7 @@ class LSTMActor(nn.Module):
                 i not in ['relu', 'tanh'] for i in hidden_size['activ'].split(',')
         ):
             raise ValueError(
+
                 "'activ' key must be a string of activation function names ('relu', 'tanh') separated by comma")
 
         layers = []
