@@ -205,12 +205,14 @@ class AbstractPPO(metaclass=ABCMeta):
         print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
             "Initialize Continuous PPO")
 
-        if self.render:
+        """if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         elif self.record_video:
             self.env = gym.make(self.env_name, render_mode='rgb_array')
         else:
-            self.env = gym.make(self.env_name)
+            self.env = gym.make(self.env_name)"""
+        self.env = gym.make("ALE/Breakout-v5", obs_type='rgb')
+
 
         self.state_size = self.env.observation_space.shape[0]
 
@@ -256,7 +258,7 @@ class AbstractPPO(metaclass=ABCMeta):
                     state, device=self.device, dtype=torch.float32)
                 if self.recurrent:
                     state = state.unsqueeze(1)
-                state = state.unsqueeze(0)
+                #state = state.unsqueeze(0)
                 value = self.critic(state)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)
@@ -267,7 +269,6 @@ class AbstractPPO(metaclass=ABCMeta):
 
                 action = torch.tensor(
                     [action], device=self.device, dtype=torch.float32)
-                print(f"state {state} action {action} reward {reward} done {done}")
                 self.buffer.add_step_to_buffer(
                     reward, value, log_prob, action, done, state, mask)
                 state = next_state

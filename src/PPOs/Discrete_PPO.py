@@ -7,6 +7,8 @@ from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
 from src.model.Discrete.MLP.MLPCritic import MLPCritic
+from src.model.Discrete.CNN.CNNActor import CNNActor
+from src.model.Discrete.CNN.CNNCritic import CNNCritic
 from src.PPOs.AbstractPPO import AbstractPPO
 
 
@@ -29,12 +31,14 @@ class DiscretePPO(AbstractPPO):
                                    hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = LSTMCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
-
         else:
+            self.actor = CNNActor(channels=3, action_size=4)
+            self.critic = CNNCritic(channels=3)
+        """else:
             self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size,
                                   hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = MLPCritic(
-                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
+                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)"""
 
         print('Initializing discrete PPO agent')
         self.initialize_optimizer()
