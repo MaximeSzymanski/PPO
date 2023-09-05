@@ -78,7 +78,6 @@ class MLPCritic(nn.Module):
         torch.Tensor
             Value tensor of shape (batch_size, 1)
         """
-
         x = self.Dense(x)
 
         return x

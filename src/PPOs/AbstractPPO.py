@@ -211,7 +211,7 @@ class AbstractPPO(metaclass=ABCMeta):
             self.env = gym.make(self.env_name, render_mode='rgb_array')
         else:
             self.env = gym.make(self.env_name)"""
-        self.env = gym.make("ALE/Breakout-v5", obs_type='rgb')
+        self.env = gym.make("ALE/Pong-v5", obs_type='grayscale')
 
 
         self.state_size = self.env.observation_space.shape[0]
@@ -259,7 +259,8 @@ class AbstractPPO(metaclass=ABCMeta):
                 if self.recurrent:
                     state = state.unsqueeze(1)
                 #state = state.unsqueeze(0)
-                value = self.critic(state)
+                state_cnned = self.CNN(state)
+                value = self.critic(state_cnned)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)
                 mask = torch.tensor(

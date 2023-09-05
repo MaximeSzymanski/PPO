@@ -7,8 +7,7 @@ from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
 from src.model.Discrete.MLP.MLPCritic import MLPCritic
-from src.model.Discrete.CNN.CNNActor import CNNActor
-from src.model.Discrete.CNN.CNNCritic import CNNCritic
+from src.model.Discrete.CNN.CNN import CNN
 from src.PPOs.AbstractPPO import AbstractPPO
 
 
@@ -32,8 +31,11 @@ class DiscretePPO(AbstractPPO):
             self.critic = LSTMCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
         else:
-            self.actor = CNNActor(channels=3, action_size=4)
-            self.critic = CNNCritic(channels=3)
+            self.actor = MLPActor(state_size=512, action_size=self.action_size,
+                                    hidden_size=self.actor_hidden_size).to(self.device)
+            self.critic = MLPCritic(state_size=512,hidden_size=self.critic_hidden_size).to(self.device)
+        self.CNN = CNN(channels=1).to(self.device)
+
         """else:
             self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size,
                                   hidden_size=self.actor_hidden_size).to(self.device)
@@ -64,8 +66,8 @@ class DiscretePPO(AbstractPPO):
                 state, device=self.device, dtype=torch.float32)
             if self.recurrent:
                 state = state.unsqueeze(0)
-
-            action_probs = self.actor(state)
+            state_cnned = self.CNN(state)
+            action_probs = self.actor(state_cnned)
             # Compute the mask
             mask = self.get_mask(self.env.action_space.n)
 
@@ -93,9 +95,11 @@ class DiscretePPO(AbstractPPO):
                 states = torch.stack(states)
                 if self.recurrent:
                     states = states.unsqueeze(1)
-                values = self.critic(states)
+                state_cnned = self.CNN(states)
+                values = self.critic(state_cnned)
                 values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
-                action_probs = self.actor(states)
+
+                action_probs = self.actor(state_cnned)
                 # Compute the mask
                 masks_list = [self.get_mask(
                     self.env.action_space.n) for state in states]
