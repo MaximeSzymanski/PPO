@@ -2,7 +2,7 @@
 
 import dataclasses
 from abc import ABCMeta, abstractmethod
-
+from src.utils.ImagePreProcessing import resize_frame
 from PIL import Image as Img
 from PIL import ImageTk
 from torch.utils.tensorboard import SummaryWriter
@@ -240,16 +240,47 @@ class AbstractPPO(metaclass=ABCMeta):
         number_episode = 0
         average_reward = 0
         best_reward = -np.inf
-        while number_of_step < self.timestep_per_update:
 
+        while number_of_step < self.timestep_per_update:
+            frame_list = []
             state, _ = self.env.reset()
+            dummy_play = 100
+            for _ in range(dummy_play):
+                _,_,_, _, _ = self.env.step(0)
+
             self.current_episode += 1
+
             ep_reward = 0
             done = False
+
+            dummy_reward = 0
+
+            dummy_done = False
+            print(f"state: {state}")
+            print(f"state shape: {state.shape}")
+
+            state = resize_frame(state)
+            frame_list.append(state)
+            for i in range(3):
+                new_state, dummy_reward, dummy_done, _, _ = self.env.step(0)
+                new_state = resize_frame(new_state)
+                frame_list.append(new_state)
+
+            # state = np.concatenate(frame_list, axis=2)
+            frame_list_to_add = frame_list[-4:]
+            frame_list_to_add = np.array(frame_list_to_add)
+            print(f"frame list to add shape: {frame_list_to_add.shape}")
+            state = frame_list_to_add
+
+
+
             for _ in range(self.timestep_per_episode):
 
                 action, log_prob = self.choose_action(state)
                 next_state, reward, done, _, _ = self.env.step(action)
+                next_state = resize_frame(next_state)
+                frame_list.append(next_state)
+
                 self.total_timesteps_counter += 1
                 ep_reward += reward
                 self.writer.add_scalar(
@@ -272,7 +303,13 @@ class AbstractPPO(metaclass=ABCMeta):
                     [action], device=self.device, dtype=torch.float32)
                 self.buffer.add_step_to_buffer(
                     reward, value, log_prob, action, done, state, mask)
-                state = next_state
+
+                frame_list_to_add = frame_list[-4:]
+                frame_list_to_add = np.array(frame_list_to_add)
+                #next_state = np.concatenate(frame_list_to_add, axis=2)
+
+                state = frame_list_to_add
+
                 number_of_step += 1
                 if done or number_of_step == self.timestep_per_update:
                     number_episode += 1
