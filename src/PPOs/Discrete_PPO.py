@@ -44,6 +44,8 @@ class DiscretePPO(AbstractPPO):
 
         print('Initializing discrete PPO agent')
         self.initialize_optimizer()
+        self.cnn_optimizer = torch.optim.Adam(
+            self.CNN.parameters(), lr=self.lr)
         # write the hyperparameters
 
     def choose_action(self, state: np.ndarray) -> (int, torch.Tensor):
@@ -137,11 +139,27 @@ class DiscretePPO(AbstractPPO):
                 self.total_updates_counter += 1
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
+                self.cnn_optimizer.zero_grad()
                 loss.mean().backward()
+
                 # After the backward call
+                # geet weights of actor and critic
+                # and check if they have been updated
+                # if not, then there is a problem
+                # PRINT the gradients of the actor and critic
+                # and see if they are the same
+
+
+
 
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
+                self.cnn_optimizer.step()
+                new_actor_weights = self.actor.parameters()
+                new_critic_weights = self.critic.parameters()
+
+                # compare each weight in the actor and critic
+                # if they are the same, then there is a problem
 
                 # Update steps here...
 

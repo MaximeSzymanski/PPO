@@ -136,6 +136,7 @@ class AbstractPPO(metaclass=ABCMeta):
     critic_loss: nn.MSELoss = nn.MSELoss()
     critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     actor_optimizer: torch.optim.Adam = dataclasses.field(init=False)
+    cnn_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     buffer: RolloutBuffer = dataclasses.field(default_factory=RolloutBuffer)
     recurrent: bool = dataclasses.field(init=True, default=False)
     device: torch.device = torch.device(
@@ -247,7 +248,7 @@ class AbstractPPO(metaclass=ABCMeta):
             dummy_play = 100
             for _ in range(dummy_play):
                 _,_,_, _, _ = self.env.step(0)
-
+            current_episode_step = 0
             self.current_episode += 1
 
             ep_reward = 0
@@ -280,6 +281,7 @@ class AbstractPPO(metaclass=ABCMeta):
                 frame_list.append(next_state)
 
                 self.total_timesteps_counter += 1
+                current_episode_step += 1
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
@@ -309,7 +311,11 @@ class AbstractPPO(metaclass=ABCMeta):
                 state = frame_list_to_add
 
                 number_of_step += 1
-                if done or number_of_step == self.timestep_per_update:
+                if done or number_of_step == self.timestep_per_update or current_episode_step == self.timestep_per_episode:
+
+                    if number_of_step <= self.timestep_per_episode:
+                        break
+
                     number_episode += 1
                     average_reward += ep_reward
                     self.writer.add_scalar(
@@ -393,6 +399,7 @@ class AbstractPPO(metaclass=ABCMeta):
             self.actor.parameters(), lr=self.lr)
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=self.lr)
+
 
     def evaluate(self):
         """Evaluate the model."""

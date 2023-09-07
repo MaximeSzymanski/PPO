@@ -8,6 +8,7 @@ class CNN(nn.Module):
     def __init__(self,channels, action_size: int = 1, hidden_size=None) -> None:
         super(CNN, self).__init__()
         self.epoch = 0
+
         # Convolutional layers
         # We now describe the exact architecture used for all seven Atari games. The input to the neural
         # network consists is an 84 × 84 × 4 image produced by φ. The first hidden layer convolves 16 8 × 8
@@ -27,7 +28,7 @@ class CNN(nn.Module):
 
         )
 
-
+        self.weight = self.conv_layers[0].weight
 
 
     def forward(self, x):
@@ -66,4 +67,13 @@ class CNN(nn.Module):
                 x = x.permute(2, 0, 1)"""
             x = self.conv_layers(x)
             x = x.reshape(batch_size, -1)
+            # print the weights of the first layer
+            weight = self.conv_layers[0].weight
+
+            # check if the weight has changed
+            if not torch.equal(weight, self.weight):
+                print("weight CHANGED")
+
+            self.weight = weight
+
             return x

@@ -64,6 +64,7 @@ class MLPCritic(nn.Module):
 
         self.Dense = nn.Sequential(*layers)
         self.apply(self._init_weights)
+        self.weight = self.Dense[0].weight
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the critic network.
@@ -79,6 +80,8 @@ class MLPCritic(nn.Module):
             Value tensor of shape (batch_size, 1)
         """
         x = self.Dense(x)
+
+
 
         return x
 
