@@ -31,9 +31,9 @@ class DiscretePPO(AbstractPPO):
             self.critic = LSTMCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
         else:
-            self.actor = MLPActor(state_size=6400, action_size=self.action_size,
+            self.actor = MLPActor(state_size=256, action_size=self.action_size,
                                     hidden_size=self.actor_hidden_size).to(self.device)
-            self.critic = MLPCritic(state_size=6400,hidden_size=self.critic_hidden_size).to(self.device)
+            self.critic = MLPCritic(state_size=256,hidden_size=self.critic_hidden_size).to(self.device)
         self.CNN = CNN(channels=4).to(self.device)
 
         """else:

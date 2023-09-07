@@ -256,8 +256,7 @@ class AbstractPPO(metaclass=ABCMeta):
             dummy_reward = 0
 
             dummy_done = False
-            print(f"state: {state}")
-            print(f"state shape: {state.shape}")
+
 
             state = resize_frame(state)
             frame_list.append(state)
@@ -269,7 +268,6 @@ class AbstractPPO(metaclass=ABCMeta):
             # state = np.concatenate(frame_list, axis=2)
             frame_list_to_add = frame_list[-4:]
             frame_list_to_add = np.array(frame_list_to_add)
-            print(f"frame list to add shape: {frame_list_to_add.shape}")
             state = frame_list_to_add
 
 
