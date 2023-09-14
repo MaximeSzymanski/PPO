@@ -7,7 +7,6 @@ from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
 from src.model.Discrete.MLP.MLPCritic import MLPCritic
-from src.model.Discrete.CNN.CNN import CNN
 from src.PPOs.AbstractPPO import AbstractPPO
 
 
@@ -30,22 +29,15 @@ class DiscretePPO(AbstractPPO):
                                    hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = LSTMCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
-        else:
-            self.actor = MLPActor(state_size=256, action_size=self.action_size,
-                                    hidden_size=self.actor_hidden_size).to(self.device)
-            self.critic = MLPCritic(state_size=256,hidden_size=self.critic_hidden_size).to(self.device)
-        self.CNN = CNN(channels=4).to(self.device)
 
-        """else:
+        else:
             self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size,
                                   hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = MLPCritic(
-                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)"""
+                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
         print('Initializing discrete PPO agent')
         self.initialize_optimizer()
-        self.cnn_optimizer = torch.optim.Adam(
-            self.CNN.parameters(), lr=self.lr)
         # write the hyperparameters
 
     def choose_action(self, state: np.ndarray) -> (int, torch.Tensor):
@@ -68,8 +60,8 @@ class DiscretePPO(AbstractPPO):
                 state, device=self.device, dtype=torch.float32)
             if self.recurrent:
                 state = state.unsqueeze(0)
-            state_cnned = self.CNN(state)
-            action_probs = self.actor(state_cnned)
+
+            action_probs = self.actor(state)
             # Compute the mask
             mask = self.get_mask(self.env.action_space.n)
 
@@ -97,11 +89,9 @@ class DiscretePPO(AbstractPPO):
                 states = torch.stack(states)
                 if self.recurrent:
                     states = states.unsqueeze(1)
-                state_cnned = self.CNN(states)
-                values = self.critic(state_cnned)
+                values = self.critic(states)
                 values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
-
-                action_probs = self.actor(state_cnned)
+                action_probs = self.actor(states)
                 # Compute the mask
                 masks_list = [self.get_mask(
                     self.env.action_space.n) for state in states]
@@ -139,27 +129,11 @@ class DiscretePPO(AbstractPPO):
                 self.total_updates_counter += 1
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
-                self.cnn_optimizer.zero_grad()
                 loss.mean().backward()
-
                 # After the backward call
-                # geet weights of actor and critic
-                # and check if they have been updated
-                # if not, then there is a problem
-                # PRINT the gradients of the actor and critic
-                # and see if they are the same
-
-
-
 
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
-                self.cnn_optimizer.step()
-                new_actor_weights = self.actor.parameters()
-                new_critic_weights = self.critic.parameters()
-
-                # compare each weight in the actor and critic
-                # if they are the same, then there is a problem
 
                 # Update steps here...
 

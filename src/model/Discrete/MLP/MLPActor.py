@@ -78,6 +78,7 @@ class MLPActor(nn.Module):
         x : torch.Tensor
             Action tensor
         """
+
         x = self.Dense(x)
 
         x = nn.Softmax(dim=-1)(x)
