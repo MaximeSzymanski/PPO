@@ -2,7 +2,7 @@
 
 import dataclasses
 from abc import ABCMeta, abstractmethod
-
+from matplotlib import pyplot as plt
 from PIL import Image as Img
 from PIL import ImageTk
 from torch.utils.tensorboard import SummaryWriter
@@ -15,10 +15,17 @@ import os
 from typing import Tuple
 from shap import DeepExplainer, summary_plot
 
-
+import cv2
 import torch
-
-
+from stable_baselines3.common.atari_wrappers import (
+    ClipRewardEnv,
+    EpisodicLifeEnv,
+    FireResetEnv,
+    MaxAndSkipEnv,
+    NoopResetEnv,
+    WarpFrame,
+    ClipRewardEnv,
+)
 class WrappedActor(torch.nn.Module):
     def __init__(self, actor):
         super().__init__()
@@ -134,14 +141,17 @@ class AbstractPPO(metaclass=ABCMeta):
 
     """
     critic_loss: nn.MSELoss = nn.MSELoss()
+
     critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     actor_optimizer: torch.optim.Adam = dataclasses.field(init=False)
+    cnn_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     buffer: RolloutBuffer = dataclasses.field(default_factory=RolloutBuffer)
     recurrent: bool = dataclasses.field(init=True, default=False)
     device: torch.device = torch.device(
         "cuda:0" if torch.cuda.is_available() else "cpu")
     critic: nn.Module = dataclasses.field(default=None, init=False)
     actor: nn.Module = dataclasses.field(default=None, init=False)
+    cnn : nn.Module = dataclasses.field(default=None, init=False)
     action_size: int = dataclasses.field(init=False, default=0)
     state_size: int = dataclasses.field(init=False, default=0)
     env: gym.Env = dataclasses.field(init=False)
@@ -204,14 +214,29 @@ class AbstractPPO(metaclass=ABCMeta):
 
         print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
             "Initialize Continuous PPO")
+        self.env_name = 'BreakoutNoFrameskip-v4'
 
+
+        self.render = False
         if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         elif self.record_video:
             self.env = gym.make(self.env_name, render_mode='rgb_array')
         else:
-            self.env = gym.make(self.env_name)
+            self.env = gym.make(self.env_name, obs_type='rgb',render_mode='rgb_array')
 
+        # add wrapper
+        self.env = gym.wrappers.RecordEpisodeStatistics(self.env)
+        self.env = NoopResetEnv(self.env)
+        self.env = MaxAndSkipEnv(self.env, skip=4)
+        self.env = gym.wrappers.ResizeObservation(self.env, (84, 84))
+        self.env = gym.wrappers.GrayScaleObservation(self.env)
+        self.env = ClipRewardEnv(self.env)
+        self.env = gym.wrappers.FrameStack(self.env, 4)
+        if "FIRE" in self.env.unwrapped.get_action_meanings():
+            print(f"Add FireResetEnv wrapper to {self.env_name}")
+            self.env = FireResetEnv(self.env)
+        self.env = gym.wrappers.RecordVideo(self.env,video_folder='video/'+self.env_name,episode_trigger=lambda x: x % 10000 == 0)
         self.state_size = self.env.observation_space.shape[0]
 
     def decay_learning_rate(self) -> None:
@@ -222,6 +247,8 @@ class AbstractPPO(metaclass=ABCMeta):
         for param_group in self.critic_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
         for param_group in self.actor_optimizer.param_groups:
+            param_group['lr'] *= self.decay_rate
+        for param_group in self.cnn_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
 
     def rollout_episodes(self) -> Tuple[float, float]:
@@ -239,24 +266,35 @@ class AbstractPPO(metaclass=ABCMeta):
         average_reward = 0
         best_reward = -np.inf
         while number_of_step < self.timestep_per_update:
-
+            self.env.close()
             state, _ = self.env.reset()
+
+            # remove the last dimension
             self.current_episode += 1
             ep_reward = 0
             done = False
             for _ in range(self.timestep_per_episode):
 
                 action, log_prob = self.choose_action(state)
-                next_state, reward, done, _, _ = self.env.step(action)
+                next_state, reward, done, _, info = self.env.step(action)
                 self.total_timesteps_counter += 1
                 ep_reward += reward
                 self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)
                 state = torch.tensor(
                     state, device=self.device, dtype=torch.float32)
+                # display the image
+
                 if self.recurrent:
                     state = state.unsqueeze(1)
+                state = state.squeeze()
+                # Create a random torch tensor
+
+
+
                 state = state.unsqueeze(0)
+                state_before_cnn = state
+                state = self.cnn(state/255.0)
                 value = self.critic(state)
                 reward = torch.tensor(
                     [reward], device=self.device, dtype=torch.float32)
@@ -267,12 +305,14 @@ class AbstractPPO(metaclass=ABCMeta):
 
                 action = torch.tensor(
                     [action], device=self.device, dtype=torch.float32)
-                print(f"state {state} action {action} reward {reward} done {done}")
                 self.buffer.add_step_to_buffer(
-                    reward, value, log_prob, action, done, state, mask)
+                    reward, value, log_prob, action, done, state_before_cnn, mask)
                 state = next_state
                 number_of_step += 1
+                self.env.episode_id += 1
                 if done or number_of_step == self.timestep_per_update:
+                    print(f"Episode {self.current_episode} reward {ep_reward} "
+                          f"total timestep {self.total_timesteps_counter}")
                     number_episode += 1
                     average_reward += ep_reward
                     self.writer.add_scalar(
@@ -356,6 +396,8 @@ class AbstractPPO(metaclass=ABCMeta):
             self.actor.parameters(), lr=self.lr)
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=self.lr)
+        self.cnn_optimizer = torch.optim.Adam(
+            self.cnn.parameters(), lr=self.lr)
 
     def evaluate(self):
         """Evaluate the model."""

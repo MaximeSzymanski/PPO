@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 
-class CNN(nn.Module):
+class CNN_layer(nn.Module):
     """
     CNN model, used before both the actor and critic networks
     """
 
     def __init__(self, input_channel, output_dim):
-
+        super(CNN_layer, self).__init__()
         self.convolutions = nn.Sequential(
             nn.Conv2d(input_channel, 32, kernel_size=8, stride=4),
             nn.ReLU(),
@@ -19,6 +19,8 @@ class CNN(nn.Module):
             nn.Linear(3136, output_dim),
             nn.ReLU(),
         )
+        self.init_weights()
+
 
 
 
@@ -27,3 +29,13 @@ class CNN(nn.Module):
         x = self.convolutions(x)
 
         return x
+
+    # ortogonal initialization
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain('relu'))
+                nn.init.constant_(m.bias, 0)
+            if isinstance(m, nn.Conv2d):
+                nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain('relu'))
+                nn.init.constant_(m.bias, 0)

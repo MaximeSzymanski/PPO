@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import dataclasses
 from tqdm import tqdm
+
+from src.model.Discrete.CNN.CNN import CNN_layer
 from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
@@ -31,11 +33,11 @@ class DiscretePPO(AbstractPPO):
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
         else:
-            self.actor = MLPActor(state_size=self.state_size, action_size=self.action_size,
+            self.actor = MLPActor(state_size=512, action_size=self.action_size,
                                   hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = MLPCritic(
-                state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
-
+                state_size=512, hidden_size=self.critic_hidden_size).to(self.device)
+            self.cnn = CNN_layer(input_channel=4, output_dim=512).to(self.device)
         print('Initializing discrete PPO agent')
         self.initialize_optimizer()
         # write the hyperparameters
@@ -60,7 +62,11 @@ class DiscretePPO(AbstractPPO):
                 state, device=self.device, dtype=torch.float32)
             if self.recurrent:
                 state = state.unsqueeze(0)
-
+            # remove the last dimension
+            state = state.squeeze()
+            # add the batch dimension
+            state = state.unsqueeze(0)
+            state = self.cnn(state / 255.0)
             action_probs = self.actor(state)
             # Compute the mask
             mask = self.get_mask(self.env.action_space.n)
@@ -89,6 +95,11 @@ class DiscretePPO(AbstractPPO):
                 states = torch.stack(states)
                 if self.recurrent:
                     states = states.unsqueeze(1)
+
+                states = states.squeeze()
+                # add the batch dimension
+
+                states = self.cnn(states / 255.0)
                 values = self.critic(states)
                 values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
                 action_probs = self.actor(states)
@@ -129,11 +140,13 @@ class DiscretePPO(AbstractPPO):
                 self.total_updates_counter += 1
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
+                self.cnn_optimizer.zero_grad()
                 loss.mean().backward()
                 # After the backward call
 
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
+                self.cnn_optimizer.step()
 
                 # Update steps here...
 

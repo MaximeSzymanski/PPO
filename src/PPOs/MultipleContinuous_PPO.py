@@ -26,6 +26,7 @@ class ContinuousPPO(AbstractPPO):
         super().__post_init__()
         print("Initializing ContinousPPO")
         print('env_name: ', self.env_name)
+        print(f"action space: {self.env.action_space}")
         self.action_size = self.env.action_space.shape[0]
 
         self.episode_counter = 0
