@@ -8,15 +8,19 @@ from PIL import ImageTk
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
-import gymnasium as gym
+import gym
 from src.utils.RolloutBuffer import RolloutBuffer
 import numpy as np
+from src.utils.ImageCropping import crop_image
 import os
 from typing import Tuple
 from shap import DeepExplainer, summary_plot
-
+from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvStepReturn, VecEnvWrapper
+from gym.vector import AsyncVectorEnv
 import cv2
 import torch
+from gym.wrappers import TimeLimit, ResizeObservation, GrayScaleObservation, TransformObservation
+from  stable_baselines3.common.vec_env import VecVideoRecorder, VecFrameStack, VecNormalize, VecTransposeImage
 from stable_baselines3.common.atari_wrappers import (
     ClipRewardEnv,
     EpisodicLifeEnv,
@@ -34,7 +38,6 @@ class WrappedActor(torch.nn.Module):
     def forward(self, *args, **kwargs):
 
         outputs = self.actor(*args, **kwargs)
-        print("outputs", outputs)
         # assume outputs is a tuple and we are interested in the first element
         # or whatever index or operation gives you a single Tensor
         return outputs[0]
@@ -145,7 +148,7 @@ class AbstractPPO(metaclass=ABCMeta):
     critic_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     actor_optimizer: torch.optim.Adam = dataclasses.field(init=False)
     cnn_optimizer: torch.optim.Adam = dataclasses.field(init=False)
-    buffer: RolloutBuffer = dataclasses.field(default_factory=RolloutBuffer)
+    buffer_list : list[RolloutBuffer] = dataclasses.field(default_factory=RolloutBuffer)
     recurrent: bool = dataclasses.field(init=True, default=False)
     device: torch.device = torch.device(
         "cuda:0" if torch.cuda.is_available() else "cpu")
@@ -208,42 +211,37 @@ class AbstractPPO(metaclass=ABCMeta):
                 run_number += 1
         tensorboard_path = f'{tensorboard_path}/run_{run_number}'
 
-        self.writer = SummaryWriter(tensorboard_path)
-        self.buffer = RolloutBuffer(
-            minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda)
+        #elf.writer = SummaryWriter(tensorboard_path)
 
         print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
             "Initialize Continuous PPO")
-        self.env_name = 'BreakoutNoFrameskip-v4'
+        self.env_name = 'PongNoFrameskip-v4'
 
+        envs_fn = [lambda: gym.wrappers.FrameStack(gym.make(self.env_name),4)] * 8
+        self.env = AsyncVectorEnv(envs_fn,shared_memory=True)
+        #toprint = np.transpose(toprint,(0,1,4,2,3))
+
+
+        self.buffer_list = [RolloutBuffer( minibatch_size=self.minibatch_size, gamma=self.gamma, gae_lambda=self.gae_lambda) for _ in range(self.env_worker)]
 
         self.render = False
-        if self.render:
+        """if self.render:
             self.env = gym.make(self.env_name, render_mode='human')
         elif self.record_video:
             self.env = gym.make(self.env_name, render_mode='rgb_array')
         else:
-            self.env = gym.make(self.env_name, obs_type='rgb',render_mode='rgb_array')
+            self.env = gym.make(self.env_name, obs_type='rgb',render_mode='rgb_array')"""
 
         # add wrapper
-        self.env = gym.wrappers.RecordEpisodeStatistics(self.env)
-        self.env = NoopResetEnv(self.env)
-        self.env = MaxAndSkipEnv(self.env, skip=4)
-        self.env = gym.wrappers.ResizeObservation(self.env, (84, 84))
-        self.env = gym.wrappers.GrayScaleObservation(self.env)
-        self.env = ClipRewardEnv(self.env)
-        self.env = gym.wrappers.FrameStack(self.env, 4)
-        if "FIRE" in self.env.unwrapped.get_action_meanings():
-            print(f"Add FireResetEnv wrapper to {self.env_name}")
-            self.env = FireResetEnv(self.env)
-        self.env = gym.wrappers.RecordVideo(self.env,video_folder='video/'+self.env_name,episode_trigger=lambda x: x % 10000 == 0)
-        self.state_size = self.env.observation_space.shape[0]
+
+                #self.env = gym.wrappers.RecordVideo(self.env,video_folder='video/'+self.env_name,episode_trigger=lambda x: x % 10000 == 0)
+        self.state_size = self.env.observation_space
 
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
         # decay critic learning rate
-        self.writer.add_scalar(
-            "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)
+        """self.writer.add_scalar(
+            "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)"""
         for param_group in self.critic_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
         for param_group in self.actor_optimizer.param_groups:
@@ -265,66 +263,68 @@ class AbstractPPO(metaclass=ABCMeta):
         number_episode = 0
         average_reward = 0
         best_reward = -np.inf
-        while number_of_step < self.timestep_per_update:
-            self.env.close()
-            state, _ = self.env.reset()
+        total_timestep  = 2000000
+        Num_worker = 8
+        horizon = 128
+        next_obs_vanilla ,_= self.env.reset()
+        next_obs = crop_image(next_obs_vanilla)
+        next_done = [False for _ in range(Num_worker)]
+        cumulated_reward = [0 for _ in range(Num_worker)]
+        for update in range(1, total_timestep // horizon * Num_worker + 1):
 
-            # remove the last dimension
-            self.current_episode += 1
-            ep_reward = 0
-            done = False
-            for _ in range(self.timestep_per_episode):
 
-                action, log_prob = self.choose_action(state)
-                next_state, reward, done, _, info = self.env.step(action)
-                self.total_timesteps_counter += 1
-                ep_reward += reward
-                self.writer.add_scalar(
-                    "Reward total timestep", reward, self.total_timesteps_counter)
-                state = torch.tensor(
-                    state, device=self.device, dtype=torch.float32)
+
+            for step in range(horizon):
+
+                obs  = next_obs
+                done = next_done
+                action, log_prob = self.choose_action(obs)
+                next_obs, reward, next_done, _, info = self.env.step(action)
+                cumulated_reward = [reward + cumulated_reward[i] for i,reward in enumerate(reward)]
+                cumulated_reward = [reward if not done else 0 for reward,done in zip(cumulated_reward,next_done)]
+                next_obs = crop_image(next_obs)
+                print(f'cumulated reward {cumulated_reward}')
+                """self.writer.add_scalar(
+                    "Reward total timestep", reward, self.total_timesteps_counter)"""
+                state = torch.from_numpy(
+                    np.array(next_obs)).float().to(self.device)
                 # display the image
 
                 if self.recurrent:
                     state = state.unsqueeze(1)
-                state = state.squeeze()
                 # Create a random torch tensor
-
-
-
-                state = state.unsqueeze(0)
                 state_before_cnn = state
-                state = self.cnn(state/255.0)
+                state = self.cnn(state)
                 value = self.critic(state)
                 reward = torch.tensor(
-                    [reward], device=self.device, dtype=torch.float32)
-                mask = torch.tensor(
-                    [not done], device=self.device, dtype=torch.float32)
+                    [rewards for rewards in reward], device=self.device, dtype=torch.float32)
+
                 done = torch.tensor(
-                    [done], device=self.device, dtype=torch.float32)
+                    [1 if done else 0 for done in next_done], device=self.device, dtype=torch.float32)
+                mask = torch.tensor(
+                    [not dones for dones in done], device=self.device, dtype=torch.float32)
 
                 action = torch.tensor(
                     [action], device=self.device, dtype=torch.float32)
-                self.buffer.add_step_to_buffer(
-                    reward, value, log_prob, action, done, state_before_cnn, mask)
-                state = next_state
-                number_of_step += 1
-                self.env.episode_id += 1
-                if done or number_of_step == self.timestep_per_update:
-                    print(f"Episode {self.current_episode} reward {ep_reward} "
-                          f"total timestep {self.total_timesteps_counter}")
-                    number_episode += 1
-                    average_reward += ep_reward
-                    self.writer.add_scalar(
-                        "Reward", ep_reward, self.current_episode)
-                    if ep_reward > best_reward:
-                        best_reward = ep_reward
-                        self.writer.add_scalar(
-                            "Best reward", best_reward, self.current_episode)
-                    break
-        self.buffer.compute_advantages()
+                action = action.squeeze(0)
+                value  =   value.squeeze(1)
 
-        return best_reward, average_reward/number_episode
+
+
+
+                for i in range(self.env_worker):
+                    self.buffer_list[i].add_step_to_buffer(
+                        reward[i], value[i], log_prob[i], action[i], done[i], state_before_cnn[i], mask[i])
+
+
+            [self.buffer_list[i].compute_advantages() for i in range(self.env_worker)]
+            self.update()
+            if update % 100 == 0:
+                print(f'update {update}')
+                self.save_model()
+
+        #return best_reward, average_reward/number_episode
+        return 0,0
 
     def get_mask(self, action_space_size: int) -> torch.Tensor:
         """Get the mask of the action space.
@@ -362,6 +362,7 @@ class AbstractPPO(metaclass=ABCMeta):
             os.makedirs(path)
         torch.save(self.actor.state_dict(), f"{path}actor.pth")
         torch.save(self.critic.state_dict(), f"{path}critic.pth")
+        torch.save(self.cnn.state_dict(), f"{path}cnn.pth")
         # create a txt file with the hyperparameters and the architecture
         with open(f"{path}hyperparameters.txt", "w") as f:
             f.write(f"Actor dict : \n{self.actor_hidden_size}")
@@ -389,6 +390,8 @@ class AbstractPPO(metaclass=ABCMeta):
             f"{last_subfolder}/actor.pth", map_location=self.device))
         self.critic.load_state_dict(torch.load(
             f"{last_subfolder}/critic.pth", map_location=self.device))
+        self.cnn.load_state_dict(torch.load(
+            f"{last_subfolder}/cnn.pth", map_location=self.device))
 
     def initialize_optimizer(self):
         """Initialize the optimizer."""

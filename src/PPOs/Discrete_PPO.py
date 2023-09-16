@@ -24,8 +24,7 @@ class DiscretePPO(AbstractPPO):
         """Perform post initialization checks and setup any additional attributes"""
         self.continuous_action_space = False
         super().__post_init__()
-
-        self.action_size = self.env.action_space.n
+        self.action_size = self.env.action_space[0].n
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size,
                                    hidden_size=self.actor_hidden_size).to(self.device)
@@ -58,18 +57,18 @@ class DiscretePPO(AbstractPPO):
             The log probability of the action
         """
         with torch.no_grad():
-            state = torch.tensor(
-                state, device=self.device, dtype=torch.float32)
+
+            state = np.array(state)
+
+            state = torch.from_numpy(np.array(state,copy=False)).float().to(self.device)
+
             if self.recurrent:
                 state = state.unsqueeze(0)
             # remove the last dimension
-            state = state.squeeze()
-            # add the batch dimension
-            state = state.unsqueeze(0)
-            state = self.cnn(state / 255.0)
+            state = self.cnn(state)
             action_probs = self.actor(state)
             # Compute the mask
-            mask = self.get_mask(self.env.action_space.n)
+            mask = self.get_mask(self.env.action_space[0].n)
 
             # Mask the action probabilities
             action_probs = action_probs * mask
@@ -77,78 +76,80 @@ class DiscretePPO(AbstractPPO):
             dist = torch.distributions.Categorical(action_probs)
             action = dist.sample()
             log_prob = dist.log_prob(action)
-        return action.item(), log_prob
+        return np.array(action.cpu()), log_prob
 
     def update(self):
         """Update the policy and value parameters using the PPO algorithm"""
         torch.autograd.set_detect_anomaly(True)
 
         for _ in tqdm(range(self.epochs)):
-            num_samples = len(self.buffer.rewards) - 1
+            num_samples = len(self.buffer_list[0].rewards) - 1
             indices = torch.randperm(num_samples)
 
             for i in range(0, num_samples, self.minibatch_size):
+
                 batch_indices = indices[i:i + self.minibatch_size]
-                states, actions, old_log_probs, advantages, discounted_rewards = self.buffer.get_minibatch(
-                    batch_indices)
 
-                states = torch.stack(states)
-                if self.recurrent:
-                    states = states.unsqueeze(1)
+                for buffer in self.buffer_list:
+                    states, actions, old_log_probs, advantages, discounted_rewards = buffer.get_minibatch(
+                        batch_indices)
 
-                states = states.squeeze()
-                # add the batch dimension
+                    states = torch.stack(states)
+                    if self.recurrent:
+                        states = states.unsqueeze(1)
 
-                states = self.cnn(states / 255.0)
-                values = self.critic(states)
-                values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
-                action_probs = self.actor(states)
-                # Compute the mask
-                masks_list = [self.get_mask(
-                    self.env.action_space.n) for state in states]
-                masks = torch.stack(masks_list)
+                    states = states.squeeze()
+                    # add the batch dimension
 
-                action_probs = action_probs * masks
+                    states = self.cnn(states)
+                    values = self.critic(states)
+                    values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
+                    action_probs = self.actor(states)
+                    # Compute the mask
+                    masks_list = [self.get_mask(
+                        self.env.action_space[0].n) for state in states]
+                    masks = torch.stack(masks_list)
 
-                dist = torch.distributions.Categorical(action_probs)
-                entropy = dist.entropy()
-                discounted_rewards = torch.stack(discounted_rewards)
-                discounted_rewards = discounted_rewards.squeeze().squeeze()
-                actions = torch.stack(actions)
-                actions = actions.squeeze()
+                    action_probs = action_probs * masks
 
-                new_log_probs = dist.log_prob(actions)
-                advantages = torch.stack(advantages)
-                advantages = torch.squeeze(advantages)
-                old_log_probs = torch.stack(old_log_probs).squeeze()
+                    dist = torch.distributions.Categorical(action_probs)
+                    entropy = dist.entropy()
+                    discounted_rewards = torch.stack(discounted_rewards)
+                    discounted_rewards = discounted_rewards.squeeze().squeeze()
+                    actions = torch.stack(actions)
+                    actions = actions.squeeze()
 
-                ratio = torch.exp(new_log_probs - old_log_probs.detach())
-                surr1 = ratio * advantages
-                surr2 = torch.clamp(ratio, 1 - self.eps_clip,
-                                    1 + self.eps_clip) * advantages
-                actor_loss = -torch.min(surr1, surr2)
+                    new_log_probs = dist.log_prob(actions)
+                    advantages = torch.stack(advantages)
+                    advantages = torch.squeeze(advantages)
+                    old_log_probs = torch.stack(old_log_probs).squeeze()
 
-                critic_loss = self.critic_loss(values, discounted_rewards)
-                loss = actor_loss + self.value_loss_coef * \
-                    critic_loss - self.entropy_coef * entropy
-                self.writer.add_scalar(
-                    "Value Loss", critic_loss.mean(), self.total_updates_counter)
-                self.writer.add_scalar(
-                    "MLPActor Loss", actor_loss.mean(), self.total_updates_counter)
-                self.writer.add_scalar("Entropy", entropy.mean(
-                ) * self.entropy_coef, self.total_updates_counter)
-                self.total_updates_counter += 1
-                self.actor_optimizer.zero_grad()
-                self.critic_optimizer.zero_grad()
-                self.cnn_optimizer.zero_grad()
-                loss.mean().backward()
-                # After the backward call
+                    ratio = torch.exp(new_log_probs - old_log_probs.detach())
+                    surr1 = ratio * advantages
+                    surr2 = torch.clamp(ratio, 1 - self.eps_clip,
+                                        1 + self.eps_clip) * advantages
+                    actor_loss = -torch.min(surr1, surr2)
 
-                self.actor_optimizer.step()
-                self.critic_optimizer.step()
-                self.cnn_optimizer.step()
+                    critic_loss = self.critic_loss(values, discounted_rewards)
+                    loss = actor_loss + self.value_loss_coef * \
+                        critic_loss - self.entropy_coef * entropy
+                    """self.writer.add_scalar(
+                        "Value Loss", critic_loss.mean(), self.total_updates_counter)
+                    self.writer.add_scalar(
+                        "MLPActor Loss", actor_loss.mean(), self.total_updates_counter)
+                    self.writer.add_scalar("Entropy", entropy.mean(
+                    ) * self.entropy_coef, self.total_updates_counter)"""
+                    self.total_updates_counter += 1
+                    self.actor_optimizer.zero_grad()
+                    self.critic_optimizer.zero_grad()
+                    self.cnn_optimizer.zero_grad()
+                    loss.mean().backward()
+                    # After the backward call
+                    self.actor_optimizer.step()
+                    self.critic_optimizer.step()
+                    self.cnn_optimizer.step()
 
                 # Update steps here...
 
         self.decay_learning_rate()
-        self.buffer.clean_buffer()
+        [buffer.clean_buffer() for buffer in self.buffer_list]
