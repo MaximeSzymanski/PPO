@@ -1,6 +1,9 @@
 # This is a sample Python script.
 from src.utils.PPO_factory import PPOFactory
 from src.utils.arg_parse import get_hyperparameters
+from torch.utils.tensorboard import SummaryWriter
+
+tensorboard_path = 'runs/ppo/Pong'
 
 
 def start_training():
@@ -8,6 +11,8 @@ def start_training():
 
     """
     # Define the parser
+    writer = SummaryWriter(tensorboard_path,filename_suffix='RUN')
+
     continuous, actor_hidden_size, critic_hidden_size, lr, gamma, K_epochs, eps_clip, entropy_coef, value_loss_coef, gae_lambda, max_timesteps_one_episode, timestep_per_update, env_name, recurrent, decay_rate, minibatch_size, render, save_freq, shapley_value, class_name, features_name, record_video = get_hyperparameters()
     PPO = PPOFactory.create_PPO(continuous=continuous, actor_hidden_size=actor_hidden_size,
                                 critic_hidden_size=critic_hidden_size, lr=lr, gamma=gamma,
@@ -23,11 +28,11 @@ def start_training():
 
     for i in range(1000):
         print('Iteration: ', i)
-        best, avg = PPO.rollout_episodes()
+        best, avg = PPO.rollout_episodes(writer=writer)
         print("Current episode", PPO.current_episode)
         print('Best reward: ', best)
         print('Average reward: ', avg)
-        PPO.update()
+        PPO.update(writer=writer)
         if i % save_freq == 0:
             path = f'saved_weights/{str(PPO.env_name)}/{str(PPO.current_episode)}/'
             PPO.save_model(path)

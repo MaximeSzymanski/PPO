@@ -15,7 +15,7 @@ from src.utils.ImageCropping import crop_image
 import os
 from typing import Tuple
 from shap import DeepExplainer, summary_plot
-from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvStepReturn, VecEnvWrapper
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from gym.vector import AsyncVectorEnv
 import cv2
 import torch
@@ -29,6 +29,7 @@ from stable_baselines3.common.atari_wrappers import (
     NoopResetEnv,
     WarpFrame,
     ClipRewardEnv,
+    AtariWrapper
 )
 class WrappedActor(torch.nn.Module):
     def __init__(self, actor):
@@ -151,7 +152,7 @@ class AbstractPPO(metaclass=ABCMeta):
     buffer_list : list[RolloutBuffer] = dataclasses.field(default_factory=RolloutBuffer)
     recurrent: bool = dataclasses.field(init=True, default=False)
     device: torch.device = torch.device(
-        "cuda:0" if torch.cuda.is_available() else "cpu")
+        "cuda:1" if torch.cuda.is_available() else "cpu")
     critic: nn.Module = dataclasses.field(default=None, init=False)
     actor: nn.Module = dataclasses.field(default=None, init=False)
     cnn : nn.Module = dataclasses.field(default=None, init=False)
@@ -180,7 +181,6 @@ class AbstractPPO(metaclass=ABCMeta):
     minibatch_size: int = dataclasses.field(init=True, default=64)
     continuous_action_space: bool = dataclasses.field(init=True, default=False)
     render: bool = dataclasses.field(init=True, default=False)
-    writer: SummaryWriter = dataclasses.field(init=False, default=None)
     shapley_value: bool = dataclasses.field(init=True, default=False)
     class_name: list[str] = dataclasses.field(init=True, default_factory=[])
     features_name: list[str] = dataclasses.field(init=True, default_factory=[])
@@ -211,14 +211,14 @@ class AbstractPPO(metaclass=ABCMeta):
                 run_number += 1
         tensorboard_path = f'{tensorboard_path}/run_{run_number}'
 
-        #elf.writer = SummaryWriter(tensorboard_path)
 
         print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
             "Initialize Continuous PPO")
         self.env_name = 'PongNoFrameskip-v4'
 
-        envs_fn = [lambda: gym.wrappers.FrameStack(gym.make(self.env_name),4)] * 8
-        self.env = AsyncVectorEnv(envs_fn,shared_memory=True)
+        envs_fn = [lambda:gym.wrappers.RecordEpisodeStatistics(gym.wrappers.FrameStack(gym.wrappers.GrayScaleObservation(gym.wrappers.ResizeObservation(ClipRewardEnv(MaxAndSkipEnv(NoopResetEnv(gym.make(self.env_name)))),(84,84))),4))] * 8
+        #envs_fn = [lambda: (gym.make(self.env_name),4)] 
+        self.env = SubprocVecEnv(envs_fn)
         #toprint = np.transpose(toprint,(0,1,4,2,3))
 
 
@@ -240,8 +240,7 @@ class AbstractPPO(metaclass=ABCMeta):
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
         # decay critic learning rate
-        """self.writer.add_scalar(
-            "Learning Rate", self.critic_optimizer.param_groups[0]['lr'], self.total_updates_counter)"""
+
         for param_group in self.critic_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
         for param_group in self.actor_optimizer.param_groups:
@@ -249,7 +248,7 @@ class AbstractPPO(metaclass=ABCMeta):
         for param_group in self.cnn_optimizer.param_groups:
             param_group['lr'] *= self.decay_rate
 
-    def rollout_episodes(self) -> Tuple[float, float]:
+    def rollout_episodes(self,writer) -> Tuple[float, float]:
         """Rollout some episodes.
 
         Returns
@@ -261,13 +260,18 @@ class AbstractPPO(metaclass=ABCMeta):
             """
         number_of_step = 0
         number_episode = 0
+        self.number_episode_finished = 0
         average_reward = 0
         best_reward = -np.inf
         total_timestep  = 2000000
         Num_worker = 8
+        self.total_updates_counter = 0
         horizon = 128
-        next_obs_vanilla ,_= self.env.reset()
-        next_obs = crop_image(next_obs_vanilla)
+       
+        next_obs = self.env.reset()
+        next_obs = next_obs/255.0
+        print(next_obs.shape)
+        step_number = 0
         next_done = [False for _ in range(Num_worker)]
         cumulated_reward = [0 for _ in range(Num_worker)]
         for update in range(1, total_timestep // horizon * Num_worker + 1):
@@ -275,15 +279,13 @@ class AbstractPPO(metaclass=ABCMeta):
 
 
             for step in range(horizon):
-
+                step_number += Num_worker
                 obs  = next_obs
-                done = next_done
                 action, log_prob = self.choose_action(obs)
-                next_obs, reward, next_done, _, info = self.env.step(action)
-                cumulated_reward = [reward + cumulated_reward[i] for i,reward in enumerate(reward)]
-                cumulated_reward = [reward if not done else 0 for reward,done in zip(cumulated_reward,next_done)]
-                next_obs = crop_image(next_obs)
-                print(f'cumulated reward {cumulated_reward}')
+                next_obs, reward, next_done, info = self.env.step(action)
+                done = next_done
+                next_obs = next_obs/255.0
+
                 """self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)"""
                 state = torch.from_numpy(
@@ -300,12 +302,13 @@ class AbstractPPO(metaclass=ABCMeta):
                     [rewards for rewards in reward], device=self.device, dtype=torch.float32)
 
                 done = torch.tensor(
-                    [1 if done else 0 for done in next_done], device=self.device, dtype=torch.float32)
+                    [1 if done else 0 for done in next_done], device=self.device, dtype=torch.uint8)
                 mask = torch.tensor(
-                    [not dones for dones in done], device=self.device, dtype=torch.float32)
+                    [0 if  dones else 1  for dones in done], device=self.device, dtype=torch.uint8)
 
-                action = torch.tensor(
-                    [action], device=self.device, dtype=torch.float32)
+                action = torch.from_numpy(
+                    np.array(action)).float().to(self.device)
+                
                 action = action.squeeze(0)
                 value  =   value.squeeze(1)
 
@@ -315,10 +318,19 @@ class AbstractPPO(metaclass=ABCMeta):
                 for i in range(self.env_worker):
                     self.buffer_list[i].add_step_to_buffer(
                         reward[i], value[i], log_prob[i], action[i], done[i], state_before_cnn[i], mask[i])
+                    # add the reward to the tensorboard log if the episode is done
+                    if done[i] == 1:
 
-
+                        writer.add_scalar(
+                            "Reward", cumulated_reward[i], self.number_episode_finished)
+                        self.number_episode_finished += 1
+                    self.total_timesteps_counter += 1
+                cumulated_reward = [reward + cumulated_reward[i] for i, reward in enumerate(reward)]
+                cumulated_reward = [reward if not done else 0 for reward, done in zip(cumulated_reward, next_done)]
+            print(f"step : {step_number} ")
+            print(f'cumulative reward : {cumulated_reward}')
             [self.buffer_list[i].compute_advantages() for i in range(self.env_worker)]
-            self.update()
+            self.update(writer=writer)
             if update % 100 == 0:
                 print(f'update {update}')
                 self.save_model()
@@ -344,11 +356,11 @@ class AbstractPPO(metaclass=ABCMeta):
         return torch.ones(action_space_size, device=self.device)
 
     @abstractmethod
-    def update(self):
+    def update(self, writer):
         """Update the actor and the critic."""
         pass
 
-    def save_model(self, path: str = 'src/saved_weights') -> None:
+    def save_model(self, path: str = 'src/saved_weights/') -> None:
         """Save the model.
 
         Parameters

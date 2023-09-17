@@ -1,6 +1,7 @@
 import dataclasses
 from typing import List
 
+import numpy as np
 import torch
 
 
@@ -101,24 +102,18 @@ class RolloutBuffer():
         gae = 0
         returns = []
         self.values = torch.stack(self.values).detach()
-        for i in reversed(range(len(self.rewards) - 1)):
+        for i in reversed(range(len(self.rewards)-1)):
             delta = self.rewards[i] + self.gamma * \
-                self.values[i + 1] * (1 - self.dones[i]) - self.values[i]
+                self.values[i + 1] * (self.masks[i]) - self.values[i]
             gae = delta + self.gamma * \
-                self.gae_lambda * (1 - self.dones[i]) * gae
+                self.gae_lambda * (self.masks[i]) * gae
             returns.insert(0, gae + self.values[i])
 
-        returns = torch.stack(returns).detach()
-        # normalize returns
-        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
-        # reverse the advantages
+        adv = np.array(returns) - self.values[:-1].detach().numpy()
+        adv = (adv - adv.mean()) / (adv.std() + 1e-10)
+        self.advantages = torch.tensor(adv).float()
+        self.returns = returns
 
-        self.advantages = (returns) - (self.values[:-1])
-
-        # normalize advantages
-        self.advantages = (self.advantages - self.advantages.mean()
-                           ) / (self.advantages.std() + 1e-8)
-        self.returns = (returns)
 
     def clean_buffer(self) -> None:
         """Reset the buffer"""

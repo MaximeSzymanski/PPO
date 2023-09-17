@@ -3,13 +3,14 @@ import numpy as np
 import torch
 import dataclasses
 from tqdm import tqdm
-
+import torch.nn as nn
 from src.model.Discrete.CNN.CNN import CNN_layer
 from src.model.Discrete.LSTM.LSTMCritic import LSTMCritic
 from src.model.Discrete.LSTM.LSTMActor import LSTMActor
 from src.model.Discrete.MLP.MLPActor import MLPActor
 from src.model.Discrete.MLP.MLPCritic import MLPCritic
 from src.PPOs.AbstractPPO import AbstractPPO
+from torch.utils.tensorboard import SummaryWriter
 
 
 def get_model_flattened_params(model):
@@ -24,7 +25,7 @@ class DiscretePPO(AbstractPPO):
         """Perform post initialization checks and setup any additional attributes"""
         self.continuous_action_space = False
         super().__post_init__()
-        self.action_size = self.env.action_space[0].n
+        self.action_size = self.env.action_space.n
         if self.recurrent:
             self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size,
                                    hidden_size=self.actor_hidden_size).to(self.device)
@@ -68,7 +69,7 @@ class DiscretePPO(AbstractPPO):
             state = self.cnn(state)
             action_probs = self.actor(state)
             # Compute the mask
-            mask = self.get_mask(self.env.action_space[0].n)
+            mask = self.get_mask(self.env.action_space.n)
 
             # Mask the action probabilities
             action_probs = action_probs * mask
@@ -78,7 +79,7 @@ class DiscretePPO(AbstractPPO):
             log_prob = dist.log_prob(action)
         return np.array(action.cpu()), log_prob
 
-    def update(self):
+    def update(self, writer: SummaryWriter):
         """Update the policy and value parameters using the PPO algorithm"""
         torch.autograd.set_detect_anomaly(True)
 
@@ -107,7 +108,7 @@ class DiscretePPO(AbstractPPO):
                     action_probs = self.actor(states)
                     # Compute the mask
                     masks_list = [self.get_mask(
-                        self.env.action_space[0].n) for state in states]
+                        self.env.action_space.n) for state in states]
                     masks = torch.stack(masks_list)
 
                     action_probs = action_probs * masks
@@ -128,22 +129,26 @@ class DiscretePPO(AbstractPPO):
                     surr1 = ratio * advantages
                     surr2 = torch.clamp(ratio, 1 - self.eps_clip,
                                         1 + self.eps_clip) * advantages
-                    actor_loss = -torch.min(surr1, surr2)
+                    actor_loss = -torch.min(surr1, surr2).mean()
 
                     critic_loss = self.critic_loss(values, discounted_rewards)
                     loss = actor_loss + self.value_loss_coef * \
                         critic_loss - self.entropy_coef * entropy
-                    """self.writer.add_scalar(
+                    writer.add_scalar(
                         "Value Loss", critic_loss.mean(), self.total_updates_counter)
-                    self.writer.add_scalar(
+                    writer.add_scalar(
                         "MLPActor Loss", actor_loss.mean(), self.total_updates_counter)
-                    self.writer.add_scalar("Entropy", entropy.mean(
-                    ) * self.entropy_coef, self.total_updates_counter)"""
+
+                    writer.add_scalar("Entropy", entropy.mean(
+                    ) * self.entropy_coef, self.total_updates_counter)
                     self.total_updates_counter += 1
                     self.actor_optimizer.zero_grad()
                     self.critic_optimizer.zero_grad()
                     self.cnn_optimizer.zero_grad()
                     loss.mean().backward()
+                    nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
+                    nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
+                    nn.utils.clip_grad_norm_(self.cnn.parameters(), 0.5)
                     # After the backward call
                     self.actor_optimizer.step()
                     self.critic_optimizer.step()
