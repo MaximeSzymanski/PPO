@@ -34,8 +34,8 @@ class CNN_layer(nn.Module):
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain('relu'))
-                nn.init.constant_(m.bias, 0)
+                nn.init.orthogonal_(m.weight)
+                nn.init.constant_(m.bias, 0.1)
             if isinstance(m, nn.Conv2d):
-                nn.init.orthogonal_(m.weight, gain=nn.init.calculate_gain('relu'))
-                nn.init.constant_(m.bias, 0)
+                nn.init.orthogonal_(m.weight)
+                nn.init.constant_(m.bias, 0.1)

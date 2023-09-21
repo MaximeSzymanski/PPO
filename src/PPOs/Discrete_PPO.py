@@ -27,12 +27,15 @@ class DiscretePPO(AbstractPPO):
         super().__post_init__()
         self.action_size = self.env.action_space.n
         if self.recurrent:
-            self.actor = LSTMActor(state_size=self.state_size, action_size=self.action_size,
+            self.actor = LSTMActor(state_size=512, action_size=self.action_size,
                                    hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = LSTMCritic(
                 state_size=self.state_size, hidden_size=self.critic_hidden_size).to(self.device)
 
         else:
+            print(self.actor_hidden_size)
+            print(self.state_size)
+            print(self.action_size)
             self.actor = MLPActor(state_size=512, action_size=self.action_size,
                                   hidden_size=self.actor_hidden_size).to(self.device)
             self.critic = MLPCritic(
@@ -66,6 +69,7 @@ class DiscretePPO(AbstractPPO):
             if self.recurrent:
                 state = state.unsqueeze(0)
             # remove the last dimension
+
             state = self.cnn(state)
             action_probs = self.actor(state)
             # Compute the mask
@@ -101,8 +105,8 @@ class DiscretePPO(AbstractPPO):
 
                     states = states.squeeze()
                     # add the batch dimension
-
                     states = self.cnn(states)
+                    #states = self.cnn(states)
                     values = self.critic(states)
                     values = values.squeeze().squeeze() if self.recurrent else values.squeeze()
                     action_probs = self.actor(states)
@@ -126,26 +130,30 @@ class DiscretePPO(AbstractPPO):
                     old_log_probs = torch.stack(old_log_probs).squeeze()
 
                     ratio = torch.exp(new_log_probs - old_log_probs.detach())
-                    surr1 = ratio * advantages
-                    surr2 = torch.clamp(ratio, 1 - self.eps_clip,
+                    surr1 = -ratio * advantages
+                    surr2 = -torch.clamp(ratio, 1 - self.eps_clip,
                                         1 + self.eps_clip) * advantages
-                    actor_loss = -torch.min(surr1, surr2).mean()
+                    actor_loss = torch.max(surr1, surr2).mean()
 
-                    critic_loss = self.critic_loss(values, discounted_rewards)
+                    critic_loss = (discounted_rewards - values).pow(2).mean()
+                    entropy_loss = entropy.mean()
+                    """print(f'Actor Loss: {actor_loss}')
+                    print(f'Critic Loss: {critic_loss}')
+                    print(f'Entropy Loss: {entropy_loss}')"""
                     loss = actor_loss + self.value_loss_coef * \
-                        critic_loss - self.entropy_coef * entropy
+                        critic_loss - self.entropy_coef * entropy_loss
                     writer.add_scalar(
-                        "Value Loss", critic_loss.mean(), self.total_updates_counter)
+                        "Value Loss", critic_loss, self.total_updates_counter)
                     writer.add_scalar(
-                        "MLPActor Loss", actor_loss.mean(), self.total_updates_counter)
+                        "MLPActor Loss", actor_loss, self.total_updates_counter)
 
-                    writer.add_scalar("Entropy", entropy.mean(
-                    ) * self.entropy_coef, self.total_updates_counter)
+                    writer.add_scalar("Entropy", entropy_loss , self.total_updates_counter)
                     self.total_updates_counter += 1
                     self.actor_optimizer.zero_grad()
                     self.critic_optimizer.zero_grad()
                     self.cnn_optimizer.zero_grad()
-                    loss.mean().backward()
+                    loss.backward()
+
                     nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
                     nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
                     nn.utils.clip_grad_norm_(self.cnn.parameters(), 0.5)

@@ -23,7 +23,7 @@ class MLPActor(nn.Module):
     def __init__(self, state_size: int = 16, action_size: int = 1,
                  hidden_size=None) -> None:
         super(MLPActor, self).__init__()
-
+        print(f"hiiden size {hidden_size['activ']}")
         # Validation
         if hidden_size is None:
             hidden_size = {"layer": [state_size], "activ": "tanh"}
@@ -33,7 +33,7 @@ class MLPActor(nn.Module):
 
         if not isinstance(hidden_size['layer'], list) or not all(isinstance(i, int) for i in hidden_size['layer']):
             raise ValueError("'layer' key must be a list of integers")
-
+        print(f"{isinstance(hidden_size['activ'], str)}")
         if not isinstance(hidden_size['activ'], str) or any(
                 i not in ['relu', 'tanh'] for i in hidden_size['activ'].split(',')
         ):

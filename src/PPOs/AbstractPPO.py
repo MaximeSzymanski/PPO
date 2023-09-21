@@ -160,7 +160,7 @@ class AbstractPPO(metaclass=ABCMeta):
     state_size: int = dataclasses.field(init=False, default=0)
     env: gym.Env = dataclasses.field(init=False)
     env_name: str = dataclasses.field(init=True, default="CartPole-v1")
-    env_worker: int = dataclasses.field(init=True, default=4)
+    env_worker: int = dataclasses.field(init=True, default=16)
     decay_rate: float = dataclasses.field(init=True, default=0.99)
     current_episode: int = dataclasses.field(init=False, default=0)
     total_updates_counter: int = dataclasses.field(init=False, default=0)
@@ -214,10 +214,11 @@ class AbstractPPO(metaclass=ABCMeta):
 
         print("Initialize Discrete PPO ") if self.continuous_action_space == False else print(
             "Initialize Continuous PPO")
-        self.env_name = 'PongNoFrameskip-v4'
-
-        envs_fn = [lambda:gym.wrappers.RecordEpisodeStatistics(gym.wrappers.FrameStack(gym.wrappers.GrayScaleObservation(gym.wrappers.ResizeObservation(ClipRewardEnv(MaxAndSkipEnv(NoopResetEnv(gym.make(self.env_name)))),(84,84))),4))] * 8
-        #envs_fn = [lambda: (gym.make(self.env_name),4)] 
+        self.env_name =  'PongNoFrameskip-v4'
+        self.env_worker = 8
+        #print(f"Fire : {'Fire' in env.unwrapped.get_action_meanings()}")
+        envs_fn = [lambda:gym.wrappers.RecordEpisodeStatistics(gym.wrappers.FrameStack(gym.wrappers.GrayScaleObservation(gym.wrappers.ResizeObservation(ClipRewardEnv(MaxAndSkipEnv(NoopResetEnv(gym.make(self.env_name)))),(84,84))),4))] * self.env_worker
+        #envs_fn = [lambda: (gym.make(self.env_name))] * self.env_worker
         self.env = SubprocVecEnv(envs_fn)
         #toprint = np.transpose(toprint,(0,1,4,2,3))
 
@@ -235,7 +236,7 @@ class AbstractPPO(metaclass=ABCMeta):
         # add wrapper
 
                 #self.env = gym.wrappers.RecordVideo(self.env,video_folder='video/'+self.env_name,episode_trigger=lambda x: x % 10000 == 0)
-        self.state_size = self.env.observation_space
+        self.state_size = self.env.observation_space.shape[0]
 
     def decay_learning_rate(self) -> None:
         """Decay the learning rate."""
@@ -264,7 +265,7 @@ class AbstractPPO(metaclass=ABCMeta):
         average_reward = 0
         best_reward = -np.inf
         total_timestep  = 2000000
-        Num_worker = 8
+        Num_worker = self.env_worker
         self.total_updates_counter = 0
         horizon = 128
        
@@ -272,6 +273,7 @@ class AbstractPPO(metaclass=ABCMeta):
         next_obs = next_obs/255.0
         print(next_obs.shape)
         step_number = 0
+        horizon_index = 0
         next_done = [False for _ in range(Num_worker)]
         cumulated_reward = [0 for _ in range(Num_worker)]
         for update in range(1, total_timestep // horizon * Num_worker + 1):
@@ -283,14 +285,17 @@ class AbstractPPO(metaclass=ABCMeta):
                 obs  = next_obs
                 action, log_prob = self.choose_action(obs)
                 next_obs, reward, next_done, info = self.env.step(action)
+
                 done = next_done
-                next_obs = next_obs/255.0
+                #next_obs = next_obs/255.0
 
                 """self.writer.add_scalar(
                     "Reward total timestep", reward, self.total_timesteps_counter)"""
                 state = torch.from_numpy(
                     np.array(next_obs)).float().to(self.device)
-                # display the image
+                # display the image with cv2
+
+
 
                 if self.recurrent:
                     state = state.unsqueeze(1)
@@ -329,11 +334,14 @@ class AbstractPPO(metaclass=ABCMeta):
                 cumulated_reward = [reward if not done else 0 for reward, done in zip(cumulated_reward, next_done)]
             print(f"step : {step_number} ")
             print(f'cumulative reward : {cumulated_reward}')
+
+            horizon_index += 1
+
             [self.buffer_list[i].compute_advantages() for i in range(self.env_worker)]
-            self.update(writer=writer)
-            if update % 100 == 0:
+            self.update(writer)
+            """if update % 100 == 0:
                 print(f'update {update}')
-                self.save_model()
+                self.save_model()"""
 
         #return best_reward, average_reward/number_episode
         return 0,0

@@ -61,6 +61,7 @@ class RolloutBuffer():
 
     def __post_init__(self):
         """Reset the buffer"""
+
         self.clean_buffer()
 
     def add_step_to_buffer(self, reward: torch.Tensor, value: torch.Tensor, log_prob: torch.Tensor, action: torch.Tensor, done: torch.Tensor, state: list[torch.Tensor], mask: torch.Tensor) -> None:
@@ -99,20 +100,21 @@ class RolloutBuffer():
         Compute the advantages using Generalized Advantage Estimation
         Compute the returns (i.e. discounted rewards) using the values from the critic
         """
-        gae = 0
-        returns = []
-        self.values = torch.stack(self.values).detach()
-        for i in reversed(range(len(self.rewards)-1)):
-            delta = self.rewards[i] + self.gamma * \
-                self.values[i + 1] * (self.masks[i]) - self.values[i]
-            gae = delta + self.gamma * \
-                self.gae_lambda * (self.masks[i]) * gae
-            returns.insert(0, gae + self.values[i])
+        with torch.no_grad():
+            gae = 0
+            returns = []
+            self.values = torch.stack(self.values).detach()
+            for i in reversed(range(len(self.rewards)-1)):
+                delta = self.rewards[i] + self.gamma * \
+                    self.values[i + 1] * (self.masks[i]) - self.values[i]
+                gae = delta + self.gamma * \
+                    self.gae_lambda * (self.masks[i]) * gae
+                returns.insert(0, gae + self.values[i])
 
-        adv = np.array(returns) - self.values[:-1].detach().numpy()
-        adv = (adv - adv.mean()) / (adv.std() + 1e-10)
-        self.advantages = torch.tensor(adv).float()
-        self.returns = returns
+            adv = np.array(returns) - self.values[:-1].cpu().numpy()
+            adv = (adv - adv.mean()) / (adv.std() + 1e-10)
+            self.advantages = torch.tensor(adv).float()
+            self.returns = returns
 
 
     def clean_buffer(self) -> None:
