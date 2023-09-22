@@ -64,6 +64,7 @@ class RolloutBuffer():
 
         self.clean_buffer()
 
+
     def add_step_to_buffer(self, reward: torch.Tensor, value: torch.Tensor, log_prob: torch.Tensor, action: torch.Tensor, done: torch.Tensor, state: list[torch.Tensor], mask: torch.Tensor) -> None:
         """Add a step to the buffer.
 
@@ -95,26 +96,35 @@ class RolloutBuffer():
         self.states.append(state)
         self.masks.append(mask)
 
-    def compute_advantages(self) -> None:
+    def compute_advantages(self,device) -> None:
         """
         Compute the advantages using Generalized Advantage Estimation
         Compute the returns (i.e. discounted rewards) using the values from the critic
         """
         with torch.no_grad():
+            self.values = torch.stack(self.values)
+            print("self.values",self.values)
             gae = 0
-            returns = []
-            self.values = torch.stack(self.values).detach()
-            for i in reversed(range(len(self.rewards)-1)):
-                delta = self.rewards[i] + self.gamma * \
-                    self.values[i + 1] * (self.masks[i]) - self.values[i]
-                gae = delta + self.gamma * \
-                    self.gae_lambda * (self.masks[i]) * gae
-                returns.insert(0, gae + self.values[i])
+            next_value = self.values[-1]
+            advantages = torch.zeros(len(self.rewards)).to(device)
+            lastgaelam = 0
+            for t in reversed(range(len(self.rewards))):
+                if t == len(self.rewards) - 1:
+                    nextnonterminal = 1.0 - self.dones[-1]
+                    nextvalues = next_value
+                else:
+                    nextnonterminal = 1.0 - self.dones[t + 1]
+                    nextvalues = self.values[t + 1]
+                delta = self.rewards[t] + self.gamma * nextvalues * nextnonterminal - self.values[t]
+                advantages[t] = lastgaelam = delta + self.gamma * self.gae_lambda * nextnonterminal * lastgaelam
+            returns = advantages + self.values
+        # Normalize the advantages
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-            adv = np.array(returns) - self.values[:-1].cpu().numpy()
-            adv = (adv - adv.mean()) / (adv.std() + 1e-10)
-            self.advantages = torch.tensor(adv).float()
-            self.returns = returns
+        self.advantages = advantages
+        self.returns = returns
+
+
 
 
     def clean_buffer(self) -> None:

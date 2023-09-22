@@ -337,7 +337,7 @@ class AbstractPPO(metaclass=ABCMeta):
 
             horizon_index += 1
 
-            [self.buffer_list[i].compute_advantages() for i in range(self.env_worker)]
+            [self.buffer_list[i].compute_advantages(self.device) for i in range(self.env_worker)]
             self.update(writer)
             """if update % 100 == 0:
                 print(f'update {update}')
